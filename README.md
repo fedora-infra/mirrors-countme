@@ -4,23 +4,22 @@ Parse http `access_log` data, find DNF `countme` requests, and output
 structured data that lets us estimate the number of people using various
 Fedora releases.
 
-See [Changes/DNF Better Counting] for details.
-
-[Changes/DNF Better Counting]: https://fedoraproject.org/wiki/Changes/DNF_Better_Counting
+See [Changes/DNF Better Counting] for more info about the `countme` feature in
+general.
 
 ## How it works
 
 The short version:
 
-1. Starting in Fedora 32, DNF adds "countme=N" to one random HTTP request
-   per week for each repo that has `countme` enabled.
-2. This script parses httpd `access_log` files for mirrors.fedoraproject.org,
-   finds those requests, and yields the following information:
-   * request timestamp, repo & arch
-   * client OS name, version, variant, and arch
-   * client "age", from 1-4: 1 week, 1 month, 6 months, or >6 months.
-3. We use that data to make cool charts & graphs and estimate how many Fedora
-   users there are and what they're using.
+* Starting in Fedora 32, DNF adds "countme=N" to one random HTTP request
+  per week for each repo that has its `countme` setting enabled.
+* `parse-access-log.py` parses logs from mirrors.fedoraproject.org, finds
+  those requests, and yields the following information:
+    * request timestamp, repo & arch
+    * client OS name, version, variant, and arch
+    * client "age", from 1-4: 1 week, 1 month, 6 months, or >6 months.
+* We use that data to make cool charts & graphs and estimate how many Fedora
+  users there are and what they're using.
 
 ## Technical details
 
@@ -46,8 +45,6 @@ DNF 4.2.9 added the `countme` option, which [dnf.conf(5)] describes like so:
 >    This information is meant to help distinguish short-lived installs from
 >    long-term ones, and to gather other statistics about system lifecycle.
 
-[dnf.conf(5)]: https://dnf.readthedocs.io/en/latest/conf_ref.html
-
 Note that the default is False, because we don't want to enable this for every
 repo you have configured.
 
@@ -68,9 +65,9 @@ gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-fedora-$releasever-$basearch
 skip_if_unavailable=False
 ```
 
-This means that the default configuration only adds `countme=N` when using
+This means that the default configuration only adds "countme=N" when using
 official Fedora repos, which are all done via HTTPS connections to
-mirrors.fedoraproject.org. `countme=N` does _not_ get added in subsequent
+mirrors.fedoraproject.org. "countme=N" does _not_ get added in subsequent
 requests to the chosen mirror(s).
 
 ### Privacy, randomization, and user counting
@@ -82,7 +79,7 @@ which request?
 
 First, all clients use the same "week": Week 0 started at timestamp 345600
 (Mon 05 Jan 1970 00:00:00 - the first Monday of POSIX time), and weeks are
-exactly 604800 (7×24×60×60) seconds long.
+exactly 604800 (7&times;24&times;60&times;60) seconds long.
 
 Second, all clients have the same random chance - currently 1:4 - to send
 `countme` with any request in a given week. Once it's been sent, the client
@@ -98,23 +95,25 @@ start of the week will have more `countme` requests than the end of the week.
 But the weekly totals should be a consistent, representative sample of the
 total population.
 
+For more details on how libdnf handles the randomization, see
+[libdnf/repo/Repo.cpp:addCountmeFlag()].
+
 ### Data collected
 
 The only data we look at is in the HTTP request itself. Our log lines are in
-the standard Combined Log Format, like so:
+the standard Combined Log Format, like so[^IPvBeefy]:
 
 ```
 240.159.140.173 - - [29/Mar/2020:16:04:28 +0000] "GET /metalink?repo=fedora-modular-32&arch=x86_64&countme=1 HTTP/2.0" 200 18336 "-" "libdnf (Fedora 32; workstation; Linux.x86_64)"
 ```
 
-(NOTE: That's a fake IP address - it's actually the 4-byte UTF-8 encoding for "🌭".)
 
 We only look at log lines where the request is "GET", the query string includes
 "countme=N", the result is 200 or 302, and the User-Agent string matches the
 libdnf User-Agent header.
 
-The only data we use are the timestamp, the query parameters (repo, arch,
-countme), and the libdnf User-Agent values.
+The only data we use are the timestamp, the query parameters (`repo`, `arch`,
+`countme`), and the libdnf User-Agent data.
 
 #### libdnf User-Agent data
 
@@ -124,38 +123,51 @@ As in the log line above, the User-Agent header that libdnf sends looks like thi
 User-Agent: libdnf (Fedora 32; workstation; Linux.x86_64)
 ```
 
-This string is assembled in [`libdnf/utils/os-release.cpp:getUserAgent()`] and
+This string is assembled in [libdnf/utils/os-release.cpp:getUserAgent()] and
 the format is as follows:
 
 ```
 {product} ({os_name} {os_version}; {os_variant}; {os_canon}.{os_arch})
 ```
 
-where:
+where the values are:
 
-* `product`    = "libdnf"
-* `os_name`    = `/etc/os-release` `NAME`
-* `os_version` = `/etc/os-release` `VERSION_ID`
-* `os_variant` = `/etc/os-release` `VARIANT_ID`
-* `os_canon`   = rpm `%_os` (via libdnf `getCanonOS()`)
-* `os_arch`    = rpm `%_arch` (via libdnf `getBaseArch()`)
+`product`
+:  "libdnf"
+
+`os_name`
+:  [/etc/os-release] `NAME`
+
+`os_version`
+:  [/etc/os-release] `VERSION_ID`
+
+`os_variant`
+:  [/etc/os-release] `VARIANT_ID`
+
+`os_canon`
+:  rpm `%_os` (via libdnf `getCanonOS()`)
+
+`os_arch`
+:  rpm `%_arch` (via libdnf `getBaseArch()`)
 
 (Older versions of libdnf sent `libdnf/{LIBDNF_VERSION}` for the `product`,
 but the version string was dropped in libdnf 0.37.2 due to privacy concerns;
-see [commit d8d0984].)
+see [libdnf commit d8d0984].)
 
-[`libdnf/utils/os-release.cpp:getUserAgent()`]: https://github.com/rpm-software-management/libdnf/blob/0.47.0/libdnf/utils/os-release.cpp#L108
-[commit d8d0984]: https://github.com/rpm-software-management/libdnf/commit/d8d0984
-
-#### repo=, arch=, countme=
+#### `repo=`, `arch=`, `countme=`
 
 The `repo=` and `arch=` values are exactly what's set in the URL in the `.repo`
 file.
 
+`repo` is whatever string appears after `repo=` in the repo's `metalink` URL.
+The values that are accepted for `repo` are determined by [mirrormanager];
+see [mirrormanager2/lib/repomap.py] for some of the gnarly details there.
+
 `arch` is usually set as `arch=$basearch`, which means that `os_arch` and
-`repo_arch` are _probably_ the same value. But it's totally valid for a client
-to set up a repo for a version/arch different from their host OS, so these
-are considered separate.
+`repo_arch` are usually the same value. But it _is_ valid for a client to
+use a repo with an `arch=` that's different from rpm's `%_arch` - for example,
+an i686 system could use an i386 repo - so `repo_arch` and `os_arch` _may_ be
+different values.
 
 `countme`, as discussed in [dnf.conf(5)], is a value from 1 to 4 indicating
 the "age" of the system, counted in _full_ weeks since the system was
@@ -166,6 +178,22 @@ first installed. The values are:
 3. Up to six months (5-24 weeks)
 4. More than six months (25+ weeks)
 
-These are defined in [`libdnf/repo/Repo.cpp:COUNTME_BUCKETS`].
+These are defined in [libdnf/repo/Repo.cpp:COUNTME\_BUCKETS].
 
-[`libdnf/repo/Repo.cpp:COUNTME_BUCKETS`]: https://github.com/rpm-software-management/libdnf/blob/0.47.0/libdnf/repo/Repo.cpp#L92
+
+
+
+
+
+[^IPvBeefy]: Don't worry, 240.159.140.173 is a fake IP address. Actually,
+             it's the 4-byte UTF-8 encoding for &#x1f32d;, U+1F32D HOT DOG.
+
+[Changes/DNF Better Counting]: https://fedoraproject.org/wiki/Changes/DNF_Better_Counting
+[dnf.conf(5)]: https://dnf.readthedocs.io/en/latest/conf_ref.html
+[/etc/os-release]: http://man7.org/linux/man-pages/man5/os-release.5.html
+[mirrormanager]: https://github.com/fedora-infra/mirrormanager2
+[mirrormanager2/lib/repomap.py]: https://github.com/fedora-infra/mirrormanager2/blob/master/mirrormanager2/lib/repomap.py
+[libdnf commit d8d0984]: https://github.com/rpm-software-management/libdnf/commit/d8d0984
+[libdnf/utils/os-release.cpp:getUserAgent()]: https://github.com/rpm-software-management/libdnf/blob/0.47.0/libdnf/utils/os-release.cpp#L108
+[libdnf/repo/Repo.cpp:addCountmeFlag()]: https://github.com/rpm-software-management/libdnf/blob/0.47.0/libdnf/repo/Repo.cpp#L1051
+[libdnf/repo/Repo.cpp:COUNTME\_BUCKETS]: https://github.com/rpm-software-management/libdnf/blob/0.47.0/libdnf/repo/Repo.cpp#L92
