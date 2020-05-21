@@ -181,29 +181,6 @@ def parse_logtime(logtime):
     '''Parse the log's 'time' string to a `datetime` object.'''
     return datetime.datetime.strptime(logtime, "%d/%b/%Y:%H:%M:%S %z")
 
-def repo_proj(repostr):
-    '''
-    Parse a repository string and identify which project it belongs to
-    ('fedora', 'epel', etc.)
-    '''
-    if not repostr:
-        return 'none'
-    words = repostr.split('-')
-    if words[0] == 'fedora':
-        return 'fedora'
-    elif words[0] == 'updates':
-        return 'fedora'
-    elif words[0] == 'rawhide':
-        return 'fedora'
-    elif words[-1] == 'rawhide':
-        return 'fedora'
-    elif words[0] == 'epel':
-        return 'epel'
-    elif words[-1].startswith('epel'):
-        return 'epel'
-    else:
-        return 'unknown'
-
 def parse_countme_match(match):
     '''Make a complete log item by parsing the time and query string.'''
     item = match.groupdict()
@@ -213,10 +190,8 @@ def parse_countme_match(match):
     item['timestamp'] = int(dt.timestamp())
 
     qd = dict(parse_qsl(item['query']))
-    repo = qd.get('repo')
     item['querydict'] = qd
-    item['repo']      = repo
-    item['repo_proj'] = repo_proj(repo)
+    item['repo_tag']  = qd.get('repo')
     item['repo_arch'] = qd.get('arch')
     item['countme']   = qd.get('countme')
 
@@ -292,42 +267,41 @@ class SQLiteWriter(ItemWriter):
         # We override _fields here because otherwise we'd have to dynamically
         # construct table schema and.. that's complicated, and this is a simple
         # tool. If you want to get fancier than this with your SQL, consider
-        # using CSV output and writing your own importer.
-        self._fields = ("timestamp", "os_name", "os_version", "os_variant",
-                        "os_arch", "countme", "repo", "repo_proj", "repo_arch")
+        # using CSV output and writing your own importer?
+        self._fields = ("timestamp", "countme",
+                        "os_name", "os_version", "os_variant", "os_arch",
+                        "repo_tag", "repo_arch")
     def write_header(self):
+        # TODO: probably need some of these to be NULL-able for mirror-mode.
+        # Either that or a different schema for mirror-mode?
         self._cur.execute("""
             CREATE TABLE IF NOT EXISTS countme_raw (
-                timestamp  timestamp NOT NULL,
+                timestamp  INTEGER   NOT NULL,
+                countme    INTEGER   NOT NULL,
                 os_name    TEXT      NOT NULL,
                 os_version TEXT      NOT NULL,
                 os_variant TEXT      NOT NULL,
                 os_arch    TEXT      NOT NULL,
-                countme    INTEGER   NOT NULL,
-                repo       TEXT      NOT NULL,
-                repo_proj  TEXT      NOT NULL,
+                repo_tag   TEXT      NOT NULL,
                 repo_arch  TEXT      NOT NULL)
-        """)
-        self._cur.execute("""
-            CREATE INDEX IF NOT EXISTS timestamp ON countme_raw (timestamp)
         """)
     def _write_item(self, item):
         self._cur.execute("""
             INSERT INTO countme_raw VALUES (
                 :timestamp,
+                :countme,
                 :os_name,
                 :os_version,
                 :os_variant,
                 :os_arch,
-                :countme,
-                :repo,
-                :repo_proj,
+                :repo_tag,
                 :repo_arch)
         """, item)
     def write_footer(self):
+        self._cur.execute("""
+            CREATE INDEX IF NOT EXISTS timestamp ON countme_raw (timestamp)
+        """)
         self._con.commit()
-        self._cur.close()
-        self._con.close()
 
 # Little formatting helper for human-readable data sizes
 def hrsize(nbytes):
@@ -353,6 +327,7 @@ def total_data(logs):
     return sum(os.stat(f.name).st_size for f in logs)
 
 
+
 # Here's where we parse the commandline arguments!
 def parse_args(argv=None):
     p = argparse.ArgumentParser(
@@ -371,6 +346,7 @@ def parse_args(argv=None):
         help="match 'countme' lines only, or 'mirrors' to match all mirrors",
         default="countme")
 
+    # TODO: write to .OUTPUT.part and move it into place when finished
     p.add_argument("-o", "--output",
         type=argparse.FileType('wt', encoding='utf-8'),
         help="output file (default: stdout)",
@@ -397,16 +373,16 @@ def parse_args(argv=None):
         args.parse_match = parse_countme_match
         args.output_fields = (
             "timestamp",
-            "os_name", "os_version", "os_variant", "os_arch",
-            "countme", "repo", "repo_proj", "repo_arch",
+            "countme", "os_name", "os_version", "os_variant", "os_arch",
+            "repo_tag", "repo_arch",
         )
     elif args.matchmode == "mirrors":
         args.matcher = MIRRORS_LOG_RE
         args.parse_match = parse_mirrors_match
         args.output_fields = (
             "timestamp", "host",
-            "os_name", "os_version", "os_variant", "os_arch",
-            "countme", "repo", "repo_proj", "repo_arch",
+            "countme", "os_name", "os_version", "os_variant", "os_arch",
+            "repo_tag", "repo_arch",
         )
 
     # Make a writer object to format/write the matched items
