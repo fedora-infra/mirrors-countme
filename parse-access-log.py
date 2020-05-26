@@ -154,6 +154,9 @@ def compile_log_regex(flags=0, ascii=True, query_present=None, **kwargs):
 
     return re.compile(pattern, flags=flags)
 
+# Default matcher that should match any access.log line
+LOG_RE = compile_log_regex()
+
 # Compiled pattern to match all mirrorlist/metalink hits, like mirrorlist.py
 MIRRORS_LOG_RE = compile_log_regex(path=r'/metalink|/mirrorlist')
 
@@ -221,37 +224,40 @@ class LogMatcher:
             if match:
                 yield self.make_item(match)
     __iter__ = iteritems
-    def make_item(self, match):
+    @classmethod
+    def make_item(cls, match):
         raise NotImplementedError
 
 class MirrorMatcher(LogMatcher):
     '''Match all mirrorlist/metalink items, like mirrorlist.py does.'''
     regex = MIRRORS_LOG_RE
     itemtuple = MirrorItem
-    def make_item(self, match):
+    @classmethod
+    def make_item(cls, match):
         timestamp = parse_logtime(match['time']).timestamp()
         query = parse_querydict(match['query'])
-        return self.itemtuple(timestamp = int(timestamp),
-                              host      = match['host'],
-                              repo_tag  = query.get('repo'),
-                              repo_arch = query.get('arch'))
+        return cls.itemtuple(timestamp = int(timestamp),
+                             host      = match['host'],
+                             repo_tag  = query.get('repo'),
+                             repo_arch = query.get('arch'))
 
 class CountmeMatcher(LogMatcher):
     '''Match the libdnf-style "countme" requests.'''
     regex = COUNTME_LOG_RE
     itemtuple = CountmeItem
-    def make_item(self, match):
+    @classmethod
+    def make_item(cls, match):
         timestamp = parse_logtime(match['time']).timestamp()
         query = parse_querydict(match['query'])
-        return self.itemtuple(timestamp  = int(timestamp),
-                              host       = match['host'],
-                              os_name    = match['os_name'],
-                              os_version = match['os_version'],
-                              os_variant = match['os_variant'],
-                              os_arch    = match['os_arch'],
-                              countme    = int(query.get('countme')),
-                              repo_tag   = query.get('repo'),
-                              repo_arch  = query.get('arch'))
+        return cls.itemtuple(timestamp  = int(timestamp),
+                             host       = match['host'],
+                             os_name    = match['os_name'],
+                             os_version = match['os_version'],
+                             os_variant = match['os_variant'],
+                             os_arch    = match['os_arch'],
+                             countme    = int(query.get('countme')),
+                             repo_tag   = query.get('repo'),
+                             repo_arch  = query.get('arch'))
 
 # ===========================================================================
 # ====== Output formatting classes ==========================================
@@ -370,24 +376,42 @@ def make_writer(name, fp, itemtuple):
 # ====== Progress meters & helpers ==========================================
 # ===========================================================================
 
+LOG_DATE_RE = compile_log_regex(time=r'(?P<date>[^:]+):.*?')
+def log_date(line):
+    match = LOG_DATE_RE.match(line)
+    if match:
+        return match['date']
+    return "??/??/????"
+
+
 # If we have the tqdm module available then hooray, they can do the work
 class TQDMLogProgress:
     def __init__(self, logs, display=True):
         from tqdm import tqdm
         self.logs = logs
-        self.prog = tqdm(unit="B", unit_scale=True, unit_divisor=1024,
-                         total=sum(os.stat(f.name).st_size for f in logs),
-                         disable=True if not display else None)
+        self.disable = True if not display else None
 
     def __iter__(self):
-        for logf in self.logs:
-            self.prog.set_description(logf.name)
-            yield self.iter_and_count_bytes(logf)
+        for n, logf in enumerate(self.logs):
+            yield self._iter_and_count_bytes(logf, n)
 
-    def iter_and_count_bytes(self, logf):
+    def _iter_and_count_bytes(self, logf, lognum):
+        # Make a progress meter for this file
+        prog = tqdm(unit="B", unit_scale=True, unit_divisor=1024,
+                    total=os.stat(logf.name).st_size,
+                    disable=self.disable,
+                    desc=f"log {lognum+1}/{len(self.logs)}")
+        # Get the first line manually so we can get logdate
+        line = next(logf)
+        prog.set_description(f"{prog.desc}, date={log_date(line)}")
+        # Update bar and yield the first line
+        prog.update(len(line))
+        yield line
+        # And now we do the rest of the file
         for line in logf:
-            self.prog.update(len(line))
+            prog.update(len(line))
             yield line
+        prog.close()
 
 
 class DIYLogProgress:
