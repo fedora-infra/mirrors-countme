@@ -29,7 +29,7 @@ import sys
 import argparse
 import datetime
 from urllib.parse import urlparse, parse_qsl
-from collections import OrderedDict
+from typing import NamedTuple, Optional
 
 # ===========================================================================
 # ====== Regexes! Get your regexes here! ====================================
@@ -171,82 +171,122 @@ COUNTME_LOG_RE = compile_log_regex(
     user_agent    = LIBDNF_USER_AGENT_PATTERN,
 )
 
-
 # ===========================================================================
-# ====== Helper functions for massaging matched data ========================
+# ====== Output item definitions and helpers ================================
 # ===========================================================================
 
-# A couple little helpers for filling out important details of matched items.
 def parse_logtime(logtime):
     '''Parse the log's 'time' string to a `datetime` object.'''
     return datetime.datetime.strptime(logtime, "%d/%b/%Y:%H:%M:%S %z")
 
-def parse_countme_match(match):
-    '''Make a complete log item by parsing the time and query string.'''
-    item = match.groupdict()
+def parse_querydict(querystr):
+    '''Parse request query the way mirrormanager does (last value wins)'''
+    return dict(parse_qsl(querystr))
 
-    dt = parse_logtime(item['time'])
-    item['datetime']  = dt
-    item['timestamp'] = int(dt.timestamp())
 
-    qd = dict(parse_qsl(item['query']))
-    item['querydict'] = qd
-    item['repo_tag']  = qd.get('repo')
-    item['repo_arch'] = qd.get('arch')
-    item['countme']   = qd.get('countme')
+class MirrorItem(NamedTuple):
+    '''
+    A basic mirrorlist/metalink metadata item.
+    Each item has a timestamp, IP, and the requested repo= and arch= values.
+    '''
+    timestamp: int
+    host: str
+    repo_tag: Optional[str]
+    repo_arch: Optional[str]
 
-    return item
+class CountmeItem(NamedTuple):
+    '''
+    A "countme" match item.
+    Includes the countme value and libdnf User-Agent fields.
+    '''
+    timestamp: int
+    host: str
+    os_name: str
+    os_version: str
+    os_variant: str
+    os_arch: str
+    countme: int
+    repo_tag: str
+    repo_arch: str
 
-def parse_mirrors_match(match):
-    '''Make a complete log item from a MIRRORS_LOG_RE match.'''
-    # Do the usual parsing of the timestamp, query, etc.
-    item = parse_countme_match(match)
+class LogMatcher:
+    '''Base class for a LogMatcher, which iterates through a log file'''
+    regex = NotImplemented
+    itemtuple = NotImplemented
+    def __init__(self, fileobj):
+        self.fileobj = fileobj
+    def iteritems(self):
+        for line in self.fileobj:
+            match = self.regex.match(line)
+            if match:
+                yield self.make_item(match)
+    __iter__ = iteritems
+    def make_item(self, match):
+        raise NotImplementedError
 
-    # If we have a libdnf User-Agent, parse it
-    ua_match = LIBDNF_USER_AGENT_RE.match(item['user_agent'])
-    user_agent_dict = ua_match.groupdict() if ua_match else {}
-    # Add the user_agent keys & parsed values (or Nones)
-    for key in LIBDNF_USER_AGENT_RE.groupindex.keys():
-        item[key] = user_agent_dict.get(key)
+class MirrorMatcher(LogMatcher):
+    '''Match all mirrorlist/metalink items, like mirrorlist.py does.'''
+    regex = MIRRORS_LOG_RE
+    itemtuple = MirrorItem
+    def make_item(self, match):
+        timestamp = parse_logtime(match['time']).timestamp()
+        query = parse_querydict(match['query'])
+        return self.itemtuple(timestamp = int(timestamp),
+                              host      = match['host'],
+                              repo_tag  = query.get('repo'),
+                              repo_arch = query.get('arch'))
 
-    return item
+class CountmeMatcher(LogMatcher):
+    '''Match the libdnf-style "countme" requests.'''
+    regex = COUNTME_LOG_RE
+    itemtuple = CountmeItem
+    def make_item(self, match):
+        timestamp = parse_logtime(match['time']).timestamp()
+        query = parse_querydict(match['query'])
+        return self.itemtuple(timestamp  = int(timestamp),
+                              host       = match['host'],
+                              os_name    = match['os_name'],
+                              os_version = match['os_version'],
+                              os_variant = match['os_variant'],
+                              os_arch    = match['os_arch'],
+                              countme    = int(query.get('countme')),
+                              repo_tag   = query.get('repo'),
+                              repo_arch  = query.get('arch'))
 
 # ===========================================================================
-# ====== Output formatting helpers  =========================================
+# ====== Output formatting classes ==========================================
 # ===========================================================================
 
 class ItemWriter:
-    def __init__(self, fp, fields, **kwargs):
+    def __init__(self, fp, itemtuple, **kwargs):
         self._fp = fp
-        self._fields = fields
+        self._itemtuple = itemtuple
+        self._fields = itemtuple._fields
+        assert "timestamp" in self._fields, f"{itemtuple.__class__.__name__!r} has no 'timestamp' field"
         self._get_writer(**kwargs)
     def _get_writer(self):
         raise NotImplementedError
-    def _write_item(self, item):
+    def write_item(self, item):
         raise NotImplementedError
-    def _filter_item(self, item):
-        return OrderedDict((f, item.get(f)) for f in self._fields)
     def write_header(self):
         pass
     def write_footer(self):
         pass
-    def write_item(self, item):
-        self._write_item(self._filter_item(item))
 
 class JSONWriter(ItemWriter):
     def _get_writer(self):
         import json
         self._dump = json.dump
-    def _write_item(self, item):
-        self._dump(item, self._fp)
+    def write_item(self, item):
+        self._dump(item._asdict(), self._fp)
 
 class CSVWriter(ItemWriter):
     def _get_writer(self):
         import csv
-        self._writer = csv.DictWriter(self._fp, fieldnames=self._fields, extrasaction='ignore', lineterminator='\n')
+        self._writer = csv.writer(self._fp)
     def write_header(self):
-        self._writer.writeheader()
-    def _write_item(self, item):
+        self._writer.writerow(self._fields)
+    def write_item(self, item):
         self._writer.writerow(item)
 
 class AWKWriter(ItemWriter):
@@ -256,54 +296,162 @@ class AWKWriter(ItemWriter):
         self._fp.write(self._fieldsep.join(str(v) for v in vals) + '\n')
     def write_header(self):
         self._write_row(self._fields)
-    def _write_item(self, item):
-        self._write_row(item.values())
+    def write_item(self, item):
+        self._write_row(item)
 
 class SQLiteWriter(ItemWriter):
-    def _get_writer(self):
+    '''Write each item as a new row in a SQLite database table.'''
+    # We have to get a little fancier with types here since SQL tables expect
+    # typed values. Good thing Python has types now, eh?
+    SQL_TYPE = {
+        int: "INTEGER NOT NULL",
+        str: "TEXT NOT NULL",
+        float: "REAL NOT NULL",
+        bytes: "BLOB NOT NULL",
+        Optional[int]: "INTEGER",
+        Optional[str]: "TEXT",
+        Optional[float]: "REAL",
+        Optional[bytes]: "BLOB",
+    }
+    def _sqltype(self, fieldname):
+        typehint = self._itemtuple.__annotations__[fieldname]
+        return self.SQL_TYPE.get(typehint, "TEXT")
+    def _get_writer(self, tablename='countme_raw'):
+        self._tablename = tablename
         import sqlite3
-        self._con = sqlite3.connect(self._fp)
+        self._con = sqlite3.connect(self._fp.name)
         self._cur = self._con.cursor()
-        # We override _fields here because otherwise we'd have to dynamically
-        # construct table schema and.. that's complicated, and this is a simple
-        # tool. If you want to get fancier than this with your SQL, consider
-        # using CSV output and writing your own importer?
-        self._fields = ("timestamp", "countme",
-                        "os_name", "os_version", "os_variant", "os_arch",
-                        "repo_tag", "repo_arch")
+        # Generate SQL commands so we can use them later.
+        # self._create_table creates the table, with column names and types
+        # matching the names and types of the fields in self._itemtuple.
+        self._create_table = (
+            "CREATE TABLE IF NOT EXISTS {table} ({coldefs})".format(
+                table=tablename,
+                coldefs=",".join(f"{f} {self._sqltype(f)}" for f in self._fields),
+            )
+        )
+        # self._insert_item is an "INSERT" command with '?' placeholders.
+        self._insert_item = (
+            "INSERT INTO {table} ({colnames}) VALUES ({colvals})".format(
+                table=tablename,
+                colnames=",".join(self._fields),
+                colvals=",".join("?" for f in self._fields),
+            )
+        )
+        # self._create_time_index creates an index on 'timestamp'.
+        self._create_time_index = (
+            "CREATE INDEX IF NOT EXISTS timestamp_idx on {table} (timestamp)".format(
+                table=tablename,
+            )
+        )
     def write_header(self):
-        # TODO: probably need some of these to be NULL-able for mirror-mode.
-        # Either that or a different schema for mirror-mode?
-        self._cur.execute("""
-            CREATE TABLE IF NOT EXISTS countme_raw (
-                timestamp  INTEGER   NOT NULL,
-                countme    INTEGER   NOT NULL,
-                os_name    TEXT      NOT NULL,
-                os_version TEXT      NOT NULL,
-                os_variant TEXT      NOT NULL,
-                os_arch    TEXT      NOT NULL,
-                repo_tag   TEXT      NOT NULL,
-                repo_arch  TEXT      NOT NULL)
-        """)
-    def _write_item(self, item):
-        self._cur.execute("""
-            INSERT INTO countme_raw VALUES (
-                :timestamp,
-                :countme,
-                :os_name,
-                :os_version,
-                :os_variant,
-                :os_arch,
-                :repo_tag,
-                :repo_arch)
-        """, item)
+        self._cur.execute(self._create_table)
+    def write_item(self, item):
+        self._cur.execute(self._insert_item, item)
     def write_footer(self):
-        self._cur.execute("""
-            CREATE INDEX IF NOT EXISTS timestamp ON countme_raw (timestamp)
-        """)
+        self._cur.execute(self._create_time_index)
         self._con.commit()
 
-# Little formatting helper for human-readable data sizes
+def make_writer(name, fp, itemtuple):
+    '''Convenience function to grab/instantiate the right writer'''
+    if name == "csv":
+        writer = CSVWriter
+    elif name == "json":
+        writer = JSONWriter
+    elif name == "awk":
+        writer = AWKWriter
+    elif name == "sqlite":
+        writer = SQLiteWriter
+    else:
+        raise ValueError(f"Unknown writer '{name}'")
+    return writer(fp, itemtuple)
+
+# ===========================================================================
+# ====== Progress meters & helpers ==========================================
+# ===========================================================================
+
+# If we have the tqdm module available then hooray, they can do the work
+class TQDMLogProgress:
+    def __init__(self, logs, display=True):
+        from tqdm import tqdm
+        self.logs = logs
+        self.prog = tqdm(unit="B", unit_scale=True, unit_divisor=1024,
+                         total=sum(os.stat(f.name).st_size for f in logs),
+                         disable=True if not display else None)
+
+    def __iter__(self):
+        for logf in self.logs:
+            self.prog.set_description(logf.name)
+            yield self.iter_and_count_bytes(logf)
+
+    def iter_and_count_bytes(self, logf):
+        for line in logf:
+            self.prog.update(len(line))
+            yield line
+
+
+class DIYLogProgress:
+    '''A very basic progress meter to be used when tqdm isn't available.'''
+    def __init__(self, logs, display=True):
+        self.logs = logs
+        self._file_size = {f.name:os.stat(f.name).st_size for f in logs}
+        self._total_size = sum(os.stat(f.name).st_size for f in logs),
+        self._prev_read = 0
+        self._total_read = 0
+        self._cur_name = None
+        self._cur_size = 0
+        self._pct_vals = []
+        self._cur_read = 0
+        self._last_pct = None
+        self._next_show = 0
+
+    def __iter__(self):
+        for logf in self.logs:
+            self.set_file(logf.name)
+            yield self.iter_and_count_bytes(logf)
+            self.end_file()
+
+    def iter_and_count_bytes(self, logf):
+        for line in logf:
+            self.update_bytes(len(line))
+            yield line
+
+    def set_file(self, name):
+        self._cur_name = name
+        self._cur_size = self._file_size[name]
+        self._pct_vals = [self._cur_size*n//100 for n in range(101)]
+        self._cur_read = 0
+        self._last_pct = 0
+        self._next_show = self._pct_vals[1]
+
+    def update_bytes(self, size):
+        self._cur_read += size
+        if self._cur_read >= self._next_show:
+            self.show()
+
+    def end_file(self):
+        self._prev_read += self._cur_read
+        if self._last_pct < 100: # rounding error or something...
+            self.show()
+
+    def show(self):
+        cur_read = self._cur_read
+        cur_size = self._cur_size
+        cur_pct = 100*cur_read // cur_size
+        total_read = self._prev_read + self._cur_read
+        total_pct = 100*total_read // self._total_size
+        if self.display:
+            if len(self.logs) > 1:
+                print(f"[file {hrsize(cur_read):>8}/{hrsize(cur_size)} ({cur_pct:2}%), "
+                      f"total {hrsize(total_read):>8}/{hrsize(self._total_size)} ({total_pct:2}%)] "
+                      f"{self._cur_name}")
+            else:
+                print(f"[{hrsize(cur_read):>8}/{hrsize(cur_size)} ({cur_pct:2}%)] {self._cur_name}")
+        self._last_pct = cur_pct
+        self._next_show = self._pct_vals[self._last_pct+1]
+        self._total_read = total_read
+
+# Formatting helper for human-readable data sizes
 def hrsize(nbytes):
     for suffix in ("bytes", "kb", "mb", "gb"):
         if nbytes <= 1024:
@@ -311,7 +459,7 @@ def hrsize(nbytes):
         nbytes /= 1024
     return f"{nbytes:.1f}{suffix}"
 
-# Little formatting helper for human-readable time intervals
+# Formatting helper for human-readable time intervals
 def hrtime(nsecs):
     m, s = divmod(int(nsecs), 60)
     if m > 60:
@@ -322,13 +470,17 @@ def hrtime(nsecs):
     else:
         return f"{s:02d}s"
 
-# Convenience function to get total size of a set of file objects
-def total_data(logs):
-    return sum(os.stat(f.name).st_size for f in logs)
+# Set up LogProgress so it falls back to our own code if tqdm isn't here
+try:
+    from tqdm import tqdm
+    LogProgress = TQDMLogProgress
+except ImportError:
+    LogProgress = DIYLogProgress
 
+# ===========================================================================
+# ====== CLI parser & main() ================================================
+# ===========================================================================
 
-
-# Here's where we parse the commandline arguments!
 def parse_args(argv=None):
     p = argparse.ArgumentParser(
         description = "Parse Fedora access.log files.",
@@ -348,112 +500,47 @@ def parse_args(argv=None):
 
     # TODO: write to .OUTPUT.part and move it into place when finished
     p.add_argument("-o", "--output",
-        type=argparse.FileType('wt', encoding='utf-8'),
+        type=argparse.FileType('at', encoding='utf-8'),
         help="output file (default: stdout)",
         default=sys.stdout)
 
     p.add_argument("-f", "--format",
-        choices=("csv", "json", "awk"),
+        choices=("csv", "json", "awk", "sqlite"),
         help="output format (default: csv)",
         default="csv")
-
-    # TODO: maybe we should just pipe CSV into sqlite3..
-    p.add_argument("--sqlite", metavar="DB",
-        help="sqlite database to write to")
 
     p.add_argument("--progress", action="store_true",
         help="print some progress info while parsing")
 
     args = p.parse_args(argv)
 
-
-    # Get matcher, item parser, and output fields for the requested matchmode.
+    # Get matcher class for the requested matchmode
     if args.matchmode == "countme":
-        args.matcher = COUNTME_LOG_RE
-        args.parse_match = parse_countme_match
-        args.output_fields = (
-            "timestamp",
-            "countme", "os_name", "os_version", "os_variant", "os_arch",
-            "repo_tag", "repo_arch",
-        )
+        args.matcher = CountmeMatcher
     elif args.matchmode == "mirrors":
-        args.matcher = MIRRORS_LOG_RE
-        args.parse_match = parse_mirrors_match
-        args.output_fields = (
-            "timestamp", "host",
-            "countme", "os_name", "os_version", "os_variant", "os_arch",
-            "repo_tag", "repo_arch",
-        )
+        args.matcher = MirrorMatcher
 
-    # Make a writer object to format/write the matched items
-    if args.format == "csv":
-        args.writer = CSVWriter(args.output, fields=args.output_fields)
-    elif args.format == "json":
-        args.writer = JSONWriter(args.output, fields=args.output_fields)
-    elif args.format == "awk":
-        args.writer = AWKWriter(args.output, fields=args.output_fields)
-
-    # Add the SQLiteWriter, if requested.
-    # NOTE: this is kinda janky and should maybe just be a separate script
-    # that imports csv...
-    args.writers = [args.writer]
-    if args.sqlite:
-        # SQLiteWriter ignores fields, so we don't pass it here
-        args.writers.append(SQLiteWriter(args.sqlite, fields=None))
+    # Make a writer object
+    args.writer = make_writer(args.format, args.output, args.matcher.itemtuple)
 
     return args
 
-# And here's our main() function, hooray
+
 def main():
     args = parse_args()
 
-    # Initialize some stat counters
-    from time import perf_counter
-    lines_read = 0
-    bytes_read = 0
-    bytes_total = total_data(args.logs)
-    start = perf_counter()
-    prog_check = 30000
-    last_prog = 0.0
+    prog = LogProgress(args.logs, display=args.progress)
 
-    # Okay, let's start parsing some stuff!
-    for w in args.writers:
-        w.write_header()
+    # TODO: If we're appending to an existing file, check_header() instead?
+    args.writer.write_header()
 
-    for logf in args.logs:
-        for line in logf:
-            match = args.matcher.match(line)
-            if match:
-                item = args.parse_match(match)
-                for w in args.writers:
-                    w.write_item(item)
-            # Update stats, maybe output progress info.
-            # Interestingly, refactoring this out into a separate class made
-            # it run like 10% slower, so I'm leaving it here.
-            lines_read += 1
-            bytes_read += len(line)
-            if args.progress and lines_read == prog_check:
-                elapsed = perf_counter() - start
-                lines_per_sec = lines_read / elapsed
-                if elapsed - last_prog < 1.0:
-                    # oop, we're a bit early - check again in like, .1 second
-                    prog_check += int(lines_per_sec)//10
-                else:
-                    # okay! update "next check" value and "last prog" time
-                    prog_check += int(lines_per_sec)
-                    last_prog = elapsed
-                    # and actually print a progress update!
-                    bytes_left = bytes_total - bytes_read
-                    bytes_per_sec = bytes_read / elapsed
-                    print(f"[{bytes_read/bytes_total:6.1%}]"
-                          f" elapsed:{hrtime(elapsed):>6s}"
-                          f" read:{hrsize(bytes_read):8s}"
-                          f" ({lines_per_sec:.0f} lines/s,"
-                          f" {hrsize(bytes_read/elapsed)}/s)"
-                          f" left:~{hrtime(bytes_left/bytes_per_sec):6}")
+    for logf in prog:
+        for item in args.matcher(logf):
+            args.writer.write_item(item)
 
-    for w in args.writers:
-        w.write_footer()
+    # TODO: more like writer.finish()?
+    args.writer.write_footer()
+
 
 if __name__ == '__main__':
     try:
