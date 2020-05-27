@@ -418,8 +418,9 @@ class DIYLogProgress:
     '''A very basic progress meter to be used when tqdm isn't available.'''
     def __init__(self, logs, display=True):
         self.logs = logs
+        self.display = display
         self._file_size = {f.name:os.stat(f.name).st_size for f in logs}
-        self._total_size = sum(os.stat(f.name).st_size for f in logs),
+        self._total_size = sum(os.stat(f.name).st_size for f in logs)
         self._prev_read = 0
         self._total_read = 0
         self._cur_name = None
