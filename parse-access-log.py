@@ -419,6 +419,7 @@ class DIYLogProgress:
     def __init__(self, logs, display=True):
         self.logs = logs
         self.display = display
+        self.desc = ''
         self._file_size = {f.name:os.stat(f.name).st_size for f in logs}
         self._total_size = sum(os.stat(f.name).st_size for f in logs)
         self._prev_read = 0
@@ -431,18 +432,21 @@ class DIYLogProgress:
         self._next_show = 0
 
     def __iter__(self):
-        for logf in self.logs:
+        for n, logf in enumerate(self.logs):
             self.set_file(logf.name)
-            yield self.iter_and_count_bytes(logf)
+            yield self.iter_and_count_bytes(logf, n)
             self.end_file()
 
-    def iter_and_count_bytes(self, logf):
+    def iter_and_count_bytes(self, logf, lognum):
+        line = next(logf)
+        self.desc = f"log {lognum+1}/{len(self.logs)}, date={log_date(line)}"
+        self.update_bytes(len(line))
+        yield line
         for line in logf:
             self.update_bytes(len(line))
             yield line
 
     def set_file(self, name):
-        self._cur_name = name
         self._cur_size = self._file_size[name]
         self._pct_vals = [self._cur_size*n//100 for n in range(101)]
         self._cur_read = 0
@@ -463,25 +467,29 @@ class DIYLogProgress:
         cur_read = self._cur_read
         cur_size = self._cur_size
         cur_pct = 100*cur_read // cur_size
-        total_read = self._prev_read + self._cur_read
-        total_pct = 100*total_read // self._total_size
+        total_size = self._total_size
+        total_read = self._prev_read + cur_read
+        total_pct = 100*total_read // total_size
         if self.display:
             if len(self.logs) > 1:
-                print(f"[file {hrsize(cur_read):>8}/{hrsize(cur_size)} ({cur_pct:2}%), "
-                      f"total {hrsize(total_read):>8}/{hrsize(self._total_size)} ({total_pct:2}%)] "
-                      f"{self._cur_name}")
+                print(f"{self.desc}:{cur_pct:3}%"
+                      f" ({hrsize(cur_read)}/{hrsize(cur_size)}),"
+                      f" total:{total_pct:3}%"
+                      f" ({hrsize(total_read)}/{hrsize(total_size)})")
             else:
-                print(f"[{hrsize(cur_read):>8}/{hrsize(cur_size)} ({cur_pct:2}%)] {self._cur_name}")
+                print(f"{self.desc}:{cur_pct:3}%"
+                      f" ({hrsize(cur_read)}/{hrsize(cur_size)})")
         self._last_pct = cur_pct
-        self._next_show = self._pct_vals[self._last_pct+1]
+        if self._last_pct < 100:
+            self._next_show = self._pct_vals[self._last_pct+1]
         self._total_read = total_read
 
 # Formatting helper for human-readable data sizes
 def hrsize(nbytes):
-    for suffix in ("bytes", "kb", "mb", "gb"):
-        if nbytes <= 1024:
+    for suffix in ("b", "kb", "mb", "gb"):
+        if nbytes < 1000:
             break
-        nbytes /= 1024
+        nbytes /= 1000
     return f"{nbytes:.1f}{suffix}"
 
 # Formatting helper for human-readable time intervals
