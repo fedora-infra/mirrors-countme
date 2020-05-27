@@ -9,6 +9,21 @@ from typing import NamedTuple
 COUNTME_OFFSET = 345600       # 00:00:00 Mon Jan 5 00:00:00 1970
 COUNTME_WINDOW = 7*24*60*60   # Exactly 7 days
 
+# NOTE: log timestamps do not move monotonically forward, but they don't
+# seem to ever jump backwards more than 241 seconds. I assume this is
+# some timeout that's set to 4 minutes, and the log entry shows up after
+# expiry, or something. Anyway, what this means is that once we've seen
+# a timestamp that's 241 seconds past the end of a week, we can assume that
+# there will be no further entries whose timestamps belong to the previous
+# week.
+# We could probably watch the max jitter between log lines and adjust
+# this if needed, but for now I'm just gonna pad it to 600 seconds.
+# The difference between 241 and 600 is kind of irrelevant - since we get logs
+# in 24-hour chunks, any window that extends into the next day means we have to
+# wait 24 hours until we can be sure we have all the data for the previous
+# week, so the effect would be the same if this was 3600 or 43200 or whatever.
+LOG_JITTER_WINDOW = 600
+
 def weektuple(ts):
     '''Return (week_num, week_secs) for a given timestamp'''
     return divmod(int(ts)-COUNTME_OFFSET, COUNTME_WINDOW)
@@ -21,6 +36,7 @@ def week_start_ts(ts):
 def week_start(ts):
     '''Return an ISO-formatted date string of the Monday that starts the week
     that contains the given timestamp.'''
+    ts = int(ts)
     weeksecs = (ts-COUNTME_OFFSET) % COUNTME_WINDOW
     weekstart = datetime.datetime.utcfromtimestamp(ts - weeksecs)
     return weekstart.date().isoformat()
@@ -102,8 +118,7 @@ class CSVReader(ItemReader):
             header = ','.join(fields)
             raise ReaderError(f"header bad/missing, got: {header}")
     def _iter_rows(self):
-        header = next(self._rowreader)
-        return self._rowreader
+        return self._reader
 
 # TODO: AWKReader, JSONReader
 
