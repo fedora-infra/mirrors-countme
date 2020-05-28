@@ -27,7 +27,7 @@ import os
 import re
 import sys
 import argparse
-import datetime
+from datetime import datetime
 from urllib.parse import urlparse, parse_qsl
 from typing import NamedTuple, Optional
 
@@ -178,9 +178,59 @@ COUNTME_LOG_RE = compile_log_regex(
 # ====== Output item definitions and helpers ================================
 # ===========================================================================
 
+DAY_LEN = 24*60*60
+WEEK_LEN = 7*DAY_LEN
+COUNTME_EPOCH = 345600          # =00:00:00 Mon Jan 5 00:00:00 1970 (UTC)
+COUNTME_EPOCH_ORDINAL = 719167  # same, as an ordinal day number
+
+class CountmeWeek(NamedTuple):
+    '''
+    A `datetime`-style object representing a point in time in a
+    countme-defined "week".  Week 0 started Mon Jan 5 00:00:00 1970 and each
+    week is exactly 7*24*60*60 seconds long.
+
+    Times are stored as (weeknum, weeksec) tuples representing the week number
+    and the elapsed number of seconds since the start of that week.
+    '''
+    weeknum: int
+    weeksec: int = 0 # Log times only have integer-second precision
+
+    @classmethod
+    def fromtimestamp(cls, ts):
+        return cls._make(divmod(int(ts) - COUNTME_EPOCH, WEEK_LEN))
+    @classmethod
+    def fromordinal(cls, day):
+        weeknum, weekday = divmod(day - COUNTME_EPOCH_ORDINAL, 7)
+        return cls(weeknum, weekday * WEEK_LEN)
+    @classmethod
+    def fromlogtime(cls, logtime):
+        dt = datetime.strptime(logtime, "%d/%b/%Y:%H:%M:%S %z")
+        return cls._make(divmod(int(dt.timestamp()) - COUNTME_EPOCH, WEEK_LEN))
+    @classmethod
+    def now(cls):
+        return cls.fromtimestamp(datetime.utcnow().timestamp())
+    @classmethod
+    def today(cls):
+        return cls.fromordinal(datetime.utcnow().toordinal())
+
+    def toordinal(self):
+        return COUNTME_EPOCH_ORDINAL + (self.weeknum * 7)
+    def timestamp(self):
+        return COUNTME_EPOCH + (self.weeknum * WEEK_LEN) + self.weeksec
+    def start_ts(self):
+        return COUNTME_EPOCH + (self.weeknum * WEEK_LEN)
+    def time_range(self):
+        '''Return [start, end) timestamps. Like range(), 'end' is not included.'''
+        start = COUNTME_EPOCH + (self.weeknum * WEEK_LEN)
+        return (start, start+WEEK_LEN)
+    def time_between(self):
+        '''Return [start, last] timestamps. 'last' is included in the range.'''
+        start = COUNTME_EPOCH + (self.weeknum * WEEK_LEN)
+        return (start, start+WEEK_LEN-1)
+
 def parse_logtime(logtime):
     '''Parse the log's 'time' string to a `datetime` object.'''
-    return datetime.datetime.strptime(logtime, "%d/%b/%Y:%H:%M:%S %z")
+    return datetime.strptime(logtime, "%d/%b/%Y:%H:%M:%S %z")
 
 def parse_querydict(querystr):
     '''Parse request query the way mirrormanager does (last value wins)'''
