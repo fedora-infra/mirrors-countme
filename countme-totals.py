@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 import sys
 import argparse
@@ -126,10 +126,15 @@ class SQLiteReader(ItemReader):
     def _get_reader(self, tablename='countme_raw', **kwargs):
         import sqlite3
         self._con = sqlite3.connect(self._fp.name)
+        # TODO: self._con.set_progress_handler(handler, call_interval)
         self._cur = self._con.cursor()
         self._tablename = tablename
-        fields_sql = f"SELECT name FROM pragma_table_info(?)"
-        self._filefields = tuple(r[0] for r in self._cur.execute(fields_sql, (tablename,)))
+        if False and sqlite3.sqlite_version_info >= (3,16,0):
+            fields_sql = f"SELECT name FROM pragma_table_info(?)"
+            self._filefields = tuple(r[0] for r in self._cur.execute(fields_sql, (tablename,)))
+        else:
+            fields_sql = f"PRAGMA table_info('{tablename}')"
+            self._filefields = tuple(r[1] for r in self._cur.execute(fields_sql))
     def _iter_rows(self):
         fields = ",".join(self._itemfields)
         return self._cur.execute(f"SELECT {fields} FROM {self._tablename}")
