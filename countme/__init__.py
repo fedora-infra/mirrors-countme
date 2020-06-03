@@ -24,7 +24,7 @@
 
 import os
 import re
-from datetime import date, time, datetime, timezone
+from datetime import date, time, datetime, timezone, timedelta
 from urllib.parse import parse_qsl
 from typing import NamedTuple, Optional
 
@@ -49,7 +49,7 @@ __all__ = (
 
 DAY_LEN = 24*60*60
 WEEK_LEN = 7*DAY_LEN
-COUNTME_EPOCH = 345600          # =00:00:00 Mon Jan 5 00:00:00 1970 (UTC)
+COUNTME_EPOCH = 345600  # =00:00:00 Mon Jan 5 00:00:00 1970 (UTC)
 MONTHIDX = {
     'Jan':1, 'Feb':2, 'Mar':3, 'Apr':4, 'May':5, 'Jun':6,
     'Jul':7, 'Aug':8, 'Sep':9, 'Oct':10, 'Nov':11, 'Dec':12
@@ -58,12 +58,10 @@ MONTHIDX = {
 def weeknum(timestamp):
     return (int(timestamp) - COUNTME_EPOCH) // WEEK_LEN
 
-def parse_logtime(logtime):
-    # Equivalent to - but faster than:
-    #    return datetime.strptime(logtime, "%d/%b/%Y:%H:%M:%S %z")
-    # It's like ~1.2usec vs 12usec, which might seem trivial but in my tests
-    # the regex parser can handle like ~200k lines/sec - or 5usec/line - so
-    # an extra ~10usec to parse the time field is not insignificant.
+def strptime_logtime(logtime):
+    return datetime.strptime(logtime, "%d/%b/%Y:%H:%M:%S %z")
+
+def logtime_to_isoformat(logtime):
     # logtime: '29/Mar/2020:16:04:28 +0000'
     # ISO8601: '2020-03-29T16:04:28+00:00'
     y = logtime[7:11]
@@ -72,13 +70,29 @@ def parse_logtime(logtime):
     time = logtime[12:20]
     offh = logtime[21:24]
     offm = logtime[24:26]
-    return datetime.fromisoformat(f"{y}-{m:02}-{d}T{time}{offh}:{offm}")
+    return f"{y}-{m:02}-{d}T{time}{offh}:{offm}"
 
-def parse_logdate(logtime):
-    y = int(logtime[7:11])
-    m = MONTHIDX[logtime[3:6]]
-    d = int(logtime[0:2])
-    return date(y,m,d)
+def offset_to_timezone(offset):
+    '''Convert a UTC offset like -0400 to a datetime.timezone instance'''
+    offmin = 60*int(offset[1:3]) + int(offset[3:5])
+    if offset[0] == '-':
+        offmin = -offmin
+    return timezone(timedelta(minutes=offmin))
+
+def parse_logtime(logtime):
+    # Equivalent to - but faster than - strptime_logtime.
+    # It's like ~1.5usec vs 11usec, which might seem trivial but in my tests
+    # the regex parser can handle like ~200k lines/sec - or 5usec/line - so
+    # an extra ~10usec to parse the time field isn't totally insignificant.
+    # (btw, slicing logtime by hand and using re.split are both marginally
+    # slower. datetime.fromisoformat is slightly faster but not available
+    # in Python 3.6 or earlier.)
+    dt, off = logtime.split(' ',1)
+    date, hour, minute, second = dt.split(':',3)
+    day, month, year = date.split('/',2)
+    tz = timezone.utc if off in {"+0000","-0000"} else offset_to_timezone(off)
+    return datetime(int(year), MONTHIDX[month], int(day),
+                    int(hour), int(minute), int(second), 0, tz)
 
 def parse_querydict(querystr):
     '''Parse request query the way mirrormanager does (last value wins)'''
