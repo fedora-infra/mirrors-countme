@@ -51,17 +51,21 @@ class ReadProgressBase:
         raise NotImplementedError
 
 
-# If we have the tqdm module available then hooray
+# Here's how we use the tqdm progress module to show read progress.
 class TQDMReadProgress(ReadProgressBase):
+    def _get_prog(self, logf, num):
+        # Make a progress meter for this file
+        return tqdm(unit="B", unit_scale=True, unit_divisor=1024,
+                    total=os.stat(logf.name).st_size,
+                    disable=True if not self.display else None)
+
     def _iter_log_lines(self, logf, num):
         # Make a progress meter for this file
-        prog = tqdm(unit="B", unit_scale=True, unit_divisor=1024,
-                    total=os.stat(logf.name).st_size,
-                    disable=True if not self.display else None,
-                    desc=f"log {num+1}/{len(self.logs)}")
+        prog = self._get_prog(logf, num)
         # Get the first line manually so we can get logdate
         line = next(logf)
-        prog.set_description(f"{prog.desc}, date={log_date(line)}")
+        desc = f"log {num+1}/{len(self.logs)}, date={log_date(line)}"
+        prog.set_description(desc)
         # Update bar and yield the first line
         prog.update(len(line))
         yield line
@@ -71,34 +75,22 @@ class TQDMReadProgress(ReadProgressBase):
             yield line
         prog.close()
 
-class DIYReadProgress(ReadProgressBase):
-    def _iter_log_lines(self, logf, num):
-        # Make a progress meter for this file
-        prog = diyprog(total=os.stat(logf.name).st_size,
-                       disable=True if not self.display else None,
-                       desc=f"log {num+1}/{len(self.logs)}")
-        # Get the first line manually so we can get logdate
-        line = next(logf)
-        prog.set_description(f"{prog.desc}, date={log_date(line)}")
-        # Update bar and yield the first line
-        prog.update(len(line))
-        yield line
-        # And now we do the rest of the file
-        for line in logf:
-            prog.update(len(line))
-            yield line
-        prog.close()
+# No TQDM? Use our little do-it-yourself knockoff version.
+class DIYReadProgress(TQDMReadProgress):
+    def _get_prog(self, logf, num):
+        return diyprog(total=os.stat(logf.name).st_size,
+                       disable=True if not self.display else None)
 
 class diyprog:
     def __init__(self, desc=None, total=None, file=None, disable=False,
                  unit='b', unit_scale=True, barchar='_-=#'):
+        # COMPAT NOTE: tqdm objects with disable=True have no .desc attribute
         self.desc = desc
         self.total = total
         self.file = file
         self.disable = disable
         self.unit = unit
         self.unit_scale = unit_scale
-        #self.unit_divisor = unit_divisor
         self.count = 0
         self.showat = 0
         self.barchar = barchar
