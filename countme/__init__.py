@@ -217,7 +217,7 @@ class ItemWriter:
         assert timefield in self._fields, f"{itemtuple.__name__!r} has no time field {timefield!r}"
         self._timefield = timefield
         self._get_writer(**kwargs)
-    def _get_writer(self):
+    def _get_writer(self, **kwargs):
         raise NotImplementedError
     def write_item(self, item):
         raise NotImplementedError
@@ -227,14 +227,14 @@ class ItemWriter:
         pass
 
 class JSONWriter(ItemWriter):
-    def _get_writer(self):
+    def _get_writer(self, **kwargs):
         import json
         self._dump = json.dump
     def write_item(self, item):
         self._dump(item._asdict(), self._fp)
 
 class CSVWriter(ItemWriter):
-    def _get_writer(self):
+    def _get_writer(self, **kwargs):
         import csv
         self._writer = csv.writer(self._fp)
     def write_header(self):
@@ -243,7 +243,7 @@ class CSVWriter(ItemWriter):
         self._writer.writerow(item)
 
 class AWKWriter(ItemWriter):
-    def _get_writer(self, field_separator='\t'):
+    def _get_writer(self, field_separator='\t', **kwargs):
         self._fieldsep = field_separator
     def _write_row(self, vals):
         self._fp.write(self._fieldsep.join(str(v) for v in vals) + '\n')
@@ -269,7 +269,7 @@ class SQLiteWriter(ItemWriter):
     def _sqltype(self, fieldname):
         typehint = self._itemtuple.__annotations__[fieldname]
         return self.SQL_TYPE.get(typehint, "TEXT")
-    def _get_writer(self, tablename='countme_raw'):
+    def _get_writer(self, tablename='countme_raw', **kwargs):
         self._tablename = tablename
         import sqlite3
         self._con = sqlite3.connect(self._fp.name)
