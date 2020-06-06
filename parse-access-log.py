@@ -41,29 +41,37 @@ def parse_args(argv=None):
     p.add_argument("-V", "--version", action='version',
         version='%(prog)s 0.0.1')
 
-    # TODO: test whether reading as binary is faster?
     p.add_argument("logs", metavar="LOG",
         type=argparse.FileType('rt', encoding='utf-8'), nargs='+',
-        help="access_log file to parse")
-
-    p.add_argument("--matchmode",
-        choices=("countme", "mirrors"),
-        help="match 'countme' lines only, or 'mirrors' to match all mirrors",
-        default="countme")
-
-    # TODO: write to .OUTPUT.part and move it into place when finished
-    p.add_argument("-o", "--output",
-        type=argparse.FileType('at', encoding='utf-8'),
-        help="output file (default: stdout)",
-        default=sys.stdout)
-
-    p.add_argument("-f", "--format",
-        choices=("csv", "json", "awk", "sqlite"),
-        help="output format (default: csv)",
-        default="csv")
+        help="access_log file(s) to parse")
 
     p.add_argument("--progress", action="store_true",
         help="print some progress info while parsing")
+
+    p.add_argument("--matchmode",
+        choices=("countme", "mirrors"),
+        help="match 'countme' lines (default) or all mirrors",
+        default="countme")
+
+    fmt = p.add_mutually_exclusive_group(required=True)
+
+    fmt.add_argument("--sqlite", metavar="DBFILE",
+        type=argparse.FileType('ab+'),
+        help="write to a sqlite database")
+
+    fmt.add_argument("-f", "--format",
+        choices=("csv", "json", "awk"),
+        help="write to stdout in text format")
+
+    p.add_argument("--no-header",
+        dest="header", default=True, action="store_false",
+        help="No header at the start of (csv,awk) output")
+    p.add_argument("--no-index",
+        dest="index", default=True, action="store_false",
+        help="Do not add an index to the sqlite database")
+    p.add_argument("--no-dup-check",
+        dest="dupcheck", default=True, action="store_false",
+        help="Skip check for already-parsed log data (sqlite)")
 
     args = p.parse_args(argv)
 
@@ -74,23 +82,35 @@ def parse_args(argv=None):
         args.matcher = MirrorMatcher
 
     # Make a writer object
-    args.writer = make_writer(args.format, args.output, args.matcher.itemtuple)
+    if args.sqlite:
+        args.writer = make_writer("sqlite", args.sqlite, args.matcher.itemtuple)
+    else:
+        args.writer = make_writer(args.format, sys.stdout, args.matcher.itemtuple)
+
+    # No dupcheck unless we have a pre-existing sqlite database
+    if not (args.sqlite and args.sqlite.tell() > 0):
+        args.dupcheck = False
 
     return args
-
 
 def main():
     args = parse_args()
 
-    # TODO: If we're appending to an existing file, check_header() instead?
-    args.writer.write_header()
+    if args.header or args.sqlite:
+        args.writer.write_header()
 
     for logf in ReadProgress(args.logs, display=args.progress):
-        for item in args.matcher(logf):
+        match_iter = iter(args.matcher(logf))
+        if args.dupcheck:
+            item = next(match_iter)
+            if args.writer.has_item(item):
+                continue
+            args.writer.write_item(item)
+        for item in match_iter:
             args.writer.write_item(item)
 
-    # TODO: more like writer.finish()?
-    args.writer.write_footer()
+    if args.index:
+        args.writer.write_index()
 
 
 if __name__ == '__main__':

@@ -156,6 +156,7 @@ class CountmeItem(NamedTuple):
     repo_tag: str
     repo_arch: str
 
+
 class LogMatcher:
     '''Base class for a LogMatcher, which iterates through a log file'''
     regex = NotImplemented
@@ -223,7 +224,7 @@ class ItemWriter:
         raise NotImplementedError
     def write_header(self):
         pass
-    def write_footer(self):
+    def write_index(self):
         pass
 
 class JSONWriter(ItemWriter):
@@ -303,9 +304,14 @@ class SQLiteWriter(ItemWriter):
         self._cur.execute(self._create_table)
     def write_item(self, item):
         self._cur.execute(self._insert_item, item)
-    def write_footer(self):
+    def write_index(self):
         self._cur.execute(self._create_time_index)
         self._con.commit()
+    def has_item(self, item):
+        condition = " AND ".join(f"{field}=?" for field in self._fields)
+        self._cur.execute(f"SELECT COUNT(*) FROM {self._tablename} WHERE {condition}",item)
+        return bool(self._cur.fetchone()[0])
+
 
 def make_writer(name, *args, **kwargs):
     '''Convenience function to grab/instantiate the right writer'''
@@ -353,9 +359,14 @@ class ItemReader:
     def _iter_rows(self):
         '''Return an iterator/generator that produces a row for each item.'''
         raise NotImplementedError
+    def _find_item(self, item):
+        '''Return True if the given item is in this file'''
+        raise NotImplementedError
     def __iter__(self):
         for item in self._iter_rows():
             yield self._itemfactory(item)
+    def __contains__(self, item):
+        return self._find_item(item)
 
 class CSVReader(ItemReader):
     def _get_reader(self, **kwargs):
@@ -363,15 +374,28 @@ class CSVReader(ItemReader):
         self._reader = csv.reader(self._fp)
     def _get_fields(self):
         filefields = tuple(next(self._reader))
-        # Sanity check: if any field is a number, this isn't a header
+        # Sanity check: if any fieldname is a number... this isn't a header
         if any(name.isnumeric() for name in filefields):
             header = ','.join(filefields)
             raise ReaderError(f"header bad/missing: expected {self._itemfields}, got {header!r}")
         return filefields
     def _iter_rows(self):
         return self._reader
+    def _dup(self):
+        # This is pretty gross, but then, so's CSV
+        return self.__class__(open(self._fp.name, 'rt'), self._itemtuple)
+    def _find_item(self, item):
+        stritem = self._itemfactory(str(v) for v in item)
+        return (stritem in self._dup()) # O(n) worst case. Again: gross.
 
-# TODO: AWKReader, JSONReader
+class AWKReader(CSVReader):
+    def _get_reader(self, field_separator='\t', **kwargs):
+        self._reader = (line.split(field_separator) for line in self._fp)
+
+class JSONReader(CSVReader):
+    def _get_reader(self, **kwargs):
+        import json
+        self._reader = (json.loads(line) for line in self._fp)
 
 class SQLiteReader(ItemReader):
     def _get_reader(self, tablename='countme_raw', **kwargs):
@@ -384,6 +408,10 @@ class SQLiteReader(ItemReader):
         fields_sql = f"PRAGMA table_info('{self._tablename}')"
         filefields = tuple(r[1] for r in self._cur.execute(fields_sql))
         return filefields
+    def _find_item(self, item):
+        condition = " AND ".join(f"{field}=?" for field in self.fields)
+        self._cur.execute(f"SELECT COUNT(*) FROM {self._tablename} WHERE {condition}",item)
+        return bool(self._cur.fetchone()[0])
     def _iter_rows(self):
         fields = ",".join(self._itemfields)
         return self._cur.execute(f"SELECT {fields} FROM {self._tablename}")

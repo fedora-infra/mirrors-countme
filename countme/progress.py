@@ -45,7 +45,9 @@ class ReadProgressBase:
         '''Iterator for ReadProgress; yields a sequence of line-iterable
         file-like objects (one for each log in logs).'''
         for num, logf in enumerate(self.logs):
+            self._prog_setup(logf, num)
             yield self._iter_log_lines(logf, num)
+            self._prog_close(logf, num)
 
     def _iter_log_lines(self, logf, lognum):
         raise NotImplementedError
@@ -53,15 +55,15 @@ class ReadProgressBase:
 
 # Here's how we use the tqdm progress module to show read progress.
 class TQDMReadProgress(ReadProgressBase):
-    def _get_prog(self, logf, num):
+    def _prog_setup(self, logf, num):
         # Make a progress meter for this file
-        return tqdm(unit="B", unit_scale=True, unit_divisor=1024,
-                    total=os.stat(logf.name).st_size,
-                    disable=True if not self.display else None)
+        self.prog = tqdm(unit="B", unit_scale=True, unit_divisor=1024,
+                         total=os.stat(logf.name).st_size,
+                         disable=True if not self.display else None)
 
     def _iter_log_lines(self, logf, num):
         # Make a progress meter for this file
-        prog = self._get_prog(logf, num)
+        prog = self.prog
         # Get the first line manually so we can get logdate
         line = next(logf)
         desc = f"log {num+1}/{len(self.logs)}, date={log_date(line)}"
@@ -73,13 +75,15 @@ class TQDMReadProgress(ReadProgressBase):
         for line in logf:
             prog.update(len(line))
             yield line
-        prog.close()
+
+    def _prog_close(self, logf, num):
+        self.prog.close()
 
 # No TQDM? Use our little do-it-yourself knockoff version.
 class DIYReadProgress(TQDMReadProgress):
-    def _get_prog(self, logf, num):
-        return diyprog(total=os.stat(logf.name).st_size,
-                       disable=True if not self.display else None)
+    def _prog_setup(self, logf, num):
+        self.prog = diyprog(total=os.stat(logf.name).st_size,
+                            disable=True if not self.display else None)
 
 class diyprog:
     def __init__(self, desc=None, total=None, file=None, disable=False,
