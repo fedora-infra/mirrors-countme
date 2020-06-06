@@ -96,6 +96,7 @@ def parse_args(argv=None):
     return args
 
 class CountWriter:
+    '''Like ItemWriter, but for count buckets'''
     def __init__(self, outformat, fp, bucketclass):
         self._fp = fp
         self._bucketclass = bucketclass
@@ -125,7 +126,10 @@ def main():
     # Here's the function that finds the bucket for a given item.
     item_bucket = CountmeBucket.from_item
 
-    # Okay, start reading our inputs and doing counts
+    # Initialize the writer (better to fail early than after all the counting)
+    writer = CountWriter(args.format, args.output, CountmeBucket)
+
+    # Okay, start reading and counting!
     for inf in args.infiles:
         for item in args.reader(inf, CountmeItem):
             bucket = item_bucket(item)
@@ -133,8 +137,6 @@ def main():
 
     # TODO: how do we split preliminary counts from final ones?
 
-    # Write the counts.
-    writer = CountWriter(args.format, args.output, CountmeBucket)
     writer.writecounts(count)
 
 
