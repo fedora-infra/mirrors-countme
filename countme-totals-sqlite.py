@@ -165,6 +165,11 @@ def main():
     # Find which weeks aren't already in the totals
     did_weeks = set(totals._distinct('weeknum'))
     new_weeks = set(rawdb.complete_weeks()) ^ did_weeks
+
+    if not new_weeks:
+        print(f"No new finished weeks; nothing to do.")
+        raise SystemExit(0)
+
     startweek = min(new_weeks)
     endweek = max(new_weeks)+1
 
