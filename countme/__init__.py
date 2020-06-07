@@ -222,6 +222,9 @@ class ItemWriter:
         raise NotImplementedError
     def write_item(self, item):
         raise NotImplementedError
+    def write_items(self, items):
+        for item in items:
+            self.write_item(item)
     def write_header(self):
         pass
     def write_index(self):
@@ -304,6 +307,9 @@ class SQLiteWriter(ItemWriter):
         self._cur.execute(self._create_table)
     def write_item(self, item):
         self._cur.execute(self._insert_item, item)
+    def write_items(self, items):
+        with self._con:
+            self._con.executemany(self._insert_item, items)
     def write_index(self):
         self._cur.execute(self._create_time_index)
         self._con.commit()
@@ -311,7 +317,9 @@ class SQLiteWriter(ItemWriter):
         condition = " AND ".join(f"{field}=?" for field in self._fields)
         self._cur.execute(f"SELECT COUNT(*) FROM {self._tablename} WHERE {condition}",item)
         return bool(self._cur.fetchone()[0])
-
+    def _distinct(self, column):
+        cur = self._con.execute(f"SELECT DISTINCT({column}) FROM {self._tablename}")
+        return tuple(r[0] for r in cur)
 
 def make_writer(name, *args, **kwargs):
     '''Convenience function to grab/instantiate the right writer'''

@@ -114,7 +114,7 @@ class CountWriter:
         for bucket, count in sorted(counts.items(), key=self.sortkey):
             countitem = self._countclass._make((count,)+bucket)
             self._writer.write_item(countitem)
-        self._writer.write_footer()
+        self._writer.write_index()
 
 
 def main():

@@ -100,14 +100,19 @@ def main():
         args.writer.write_header()
 
     for logf in ReadProgress(args.logs, display=args.progress):
+        # Make an iterator object for the matching log lines
         match_iter = iter(args.matcher(logf))
+
+        # Duplicate data check (for sqlite output)
         if args.dupcheck:
-            item = next(match_iter)
-            if args.writer.has_item(item):
-                continue
-            args.writer.write_item(item)
-        for item in match_iter:
-            args.writer.write_item(item)
+            item = next(match_iter)             # grab first matching item
+            if args.writer.has_item(item):      # if it's already in the db...
+                continue                        #   skip to next log
+            else:                               # otherwise
+                args.writer.write_item(item)    #   insert it into the db
+
+        # Write matching items (sqlite does commit at end, or rollback on error)
+        args.writer.write_items(match_iter)
 
     if args.index:
         args.writer.write_index()
