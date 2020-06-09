@@ -108,8 +108,13 @@ class diyprog:
         if self.disable: return
         self.count += n
         if self.count >= self.showat:
-            self.showat += self.total // 100
+            self.showat = min(self.total, self.showat + self.total // 100)
             self.display()
+
+    def iter(self, iterable):
+        for i in iterable:
+            yield i
+            self.update()
 
     @staticmethod
     def hrsize(n):
