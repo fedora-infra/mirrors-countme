@@ -1,10 +1,12 @@
 #!/usr/bin/python3
 
 import sys
+import sqlite3
 import argparse
+import datetime
 from collections import Counter
 from typing import NamedTuple
-from countme import CountmeItem, weeknum, guessreader, autoreader, make_writer
+from countme import CountmeItem, weeknum, SQLiteWriter, SQLiteReader, CSVWriter
 
 # NOTE: log timestamps do not move monotonically forward, but they don't
 # seem to ever jump backwards more than 241 seconds. I assume this is
@@ -22,11 +24,31 @@ from countme import CountmeItem, weeknum, guessreader, autoreader, make_writer
 # TODO: this should probably move into the module somewhere..
 LOG_JITTER_WINDOW = 600
 
-# Here's the "bucket" we sort each item into.
-class CountmeBucket(NamedTuple):
-    '''
-    This defines the fields that we use to group/aggregate CountmeItems.
-    '''
+# Feb 11 2020 was the date that we branched F32 from Rawhide, so we've decided
+# to use that as the starting week for countme data.
+COUNTME_START_TIME=1581292800 # =Mon Feb 10 00:00:00 2020 (UTC)
+COUNTME_START_WEEKNUM=2614
+
+DAY_LEN = 24*60*60
+WEEK_LEN = 7*DAY_LEN
+COUNTME_EPOCH = 345600  # =00:00:00 Mon Jan 5 00:00:00 1970 (UTC)
+
+# And here's how you convert a weeknum to a human-readable date
+COUNTME_EPOCH_ORDINAL=719167
+def weekdate(weeknum, weekday=0):
+    if weekday < 0 or weekday > 6:
+        raise ValueError("weekday must be between 0 (Mon) and 6 (Sun)")
+    ordinal = COUNTME_EPOCH_ORDINAL + 7*weeknum + weekday
+    return datetime.date.fromordinal(ordinal)
+
+def daterange(weeknum):
+    return weekdate(weeknum,0), weekdate(weeknum,6)
+
+# ===========================================================================
+# ====== Count Buckets & Items ==============================================
+# ===========================================================================
+
+class CountBucket(NamedTuple):
     weeknum: int
     os_name: str
     os_version: str
@@ -40,6 +62,99 @@ class CountmeBucket(NamedTuple):
     def from_item(cls, item):
         return cls._make((weeknum(item.timestamp),) + item[2:])
 
+BucketSelect = CountBucket(
+    weeknum = f"((timestamp-{COUNTME_EPOCH})/{WEEK_LEN}) as weeknum",
+    os_name = "os_name",
+    os_version = "os_version",
+    os_variant = "os_variant",
+    os_arch = "os_arch",
+    countme = "countme",
+    repo_tag = "repo_tag",
+    repo_arch = "repo_arch"
+)
+
+TotalsItem = NamedTuple("TotalsItem", [("count", int)] + list(CountBucket.__annotations__.items()))
+TotalsItem.__doc__ = '''TotalsItem is CountBucket with a "count" on the front.'''
+
+class CSVCountItem(NamedTuple):
+    '''
+    Represents one row in a countme_totals.csv file.
+    In the interest of human-readability, we replace 'weeknum' with the
+    start and end dates of that week.
+    '''
+    week_start: str
+    week_end: str
+    count: int
+    os_name: str
+    os_version: str
+    os_variant: str
+    os_arch: str
+    countme: int
+    repo_tag: str
+    repo_arch: str
+
+    @classmethod
+    def from_totalitem(cls, item):
+        '''Use this method to convert a CountItem to a CSVCountItem.'''
+        count, weeknum, *rest = item
+        week_start, week_end = daterange(weeknum)
+        return cls._make([week_start, week_end, count] + rest)
+
+# ===========================================================================
+# ====== SQL + Progress helpers =============================================
+# ===========================================================================
+
+class RawDB(SQLiteReader):
+    def __init__(self, fp, **kwargs):
+        super().__init__(fp, CountmeItem, tablename='countme_raw', **kwargs)
+
+    def _minmax(self, column):
+        cur = self._con.execute(f"SELECT min({column}),max({column}) FROM {self._tablename}")
+        return cur.fetchone()
+
+    def complete_weeks(self):
+        '''Return a range(startweek, provweek) that covers (valid + complete)
+        weeknums contained in this database. The database may contain some
+        data for `provweek`, but since it's provisional/incomplete it's
+        outside the range.'''
+        # startweek can't be earlier than the first week of data
+        startweek = max(weeknum(self.mintime()), COUNTME_START_WEEKNUM)
+        # A week is provisional until the LOG_JITTER_WINDOW expires, so once
+        # tsmax minus LOG_JITTER_WINDOW ticks over into a new weeknum, that
+        # weeknum is the provisional one. So...
+        provweek = weeknum(self.maxtime() - LOG_JITTER_WINDOW)
+        return range(startweek, provweek)
+
+    def week_count(self, weeknum):
+        start_ts = weeknum*WEEK_LEN+COUNTME_EPOCH
+        end_ts = start_ts + WEEK_LEN
+        cur = self._con.execute(
+            f"SELECT COUNT(*)"
+            f" FROM {self._tablename}"
+            f" WHERE timestamp >= {start_ts} AND timestamp < {end_ts}")
+        return cur.fetchone()[0]
+
+    def week_iter(self, weeknum, select='*'):
+        if isinstance(select, (tuple, list)):
+            item_select = ','.join(select)
+        elif isinstance(select, str):
+            item_select = select
+        else:
+            raise ValueError(f"select should be a string or tuple, not {select.__class__.__name__}")
+        start_ts = weeknum*WEEK_LEN+COUNTME_EPOCH
+        end_ts = start_ts + WEEK_LEN
+        return self._con.execute(
+            f"SELECT {item_select}"
+            f" FROM {self._tablename}"
+            f" WHERE timestamp >= {start_ts} AND timestamp < {end_ts}")
+
+try:
+    from tqdm import tqdm as Progress
+except ImportError:
+    from countme.progress import diyprog as Progress
+
+
+
 # ===========================================================================
 # ====== CLI parser & main() ================================================
 # ===========================================================================
@@ -51,93 +166,76 @@ def parse_args(argv=None):
     p.add_argument("-V", "--version", action='version',
         version='%(prog)s 0.0.1')
 
-    p.add_argument("infiles", metavar="COUNTMEDATA",
-        type=argparse.FileType('rt', encoding='utf-8'), nargs='+',
-        help="Data to parse (from parse-access-log.py)")
+    p.add_argument("countme_totals",
+        help="Database containing countme_totals")
 
-    # TODO: atomic creation/update of output file?
-    p.add_argument("-o", "--output",
-        type=argparse.FileType('at', encoding='utf-8'),
-        help="output file (default: stdout)",
-        default=sys.stdout)
+    p.add_argument("--update-from",
+        metavar="COUNTME_RAW_DB", dest="countme_raw",
+        help="Update totals from raw data (from ./parse-access-log.py)")
 
-    # TODO: flag to write prelim data to a different file/table; otherwise,
-    # don't include prelim data
+    p.add_argument("--csv-dump",
+        type=argparse.FileType('wt', encoding='utf-8'),
+        help="File to dump CSV-formatted totals data")
 
-    p.add_argument("-f", "--format",
-        choices=("csv", "json", "awk", "sqlite"),
-        help="output format (default: csv)",
-        default="csv")
-
-    p.add_argument("--input-format", choices=("csv", "sqlite", "auto"),
-        help="input file format (default: guess from extension)",
-        default="auto")
+    p.add_argument("--progress", action="store_true",
+        help="Show progress while reading and counting data.")
 
     args = p.parse_args(argv)
 
-    # Pick the right reader factory
-    if args.input_format == "csv":
-        args.reader = CSVReader
-    elif args.input_format == "sqlite":
-        args.reader = SQLiteReader
-    elif args.input_format == "auto":
-        # Check that we can figure out the right reader(s) before we start..
-        for fp in args.infiles:
-            if guessreader(fp) is None:
-                raise argparse.ArgumentTypeError(
-                    "Can't guess input format for {fp.name!r}. "
-                    "Try '--input-format=FMT'.")
-        args.reader = autoreader
-    else:
-        raise argparse.ArgumentTypeError("unknown input format {args.input_format!r}")
-
-    # TODO: if writing to existing file, check & bail out if field mismatch
-
     return args
-
-class CountWriter:
-    '''Like ItemWriter, but for count buckets'''
-    def __init__(self, outformat, fp, bucketclass):
-        self._fp = fp
-        self._bucketclass = bucketclass
-        self._countclass = NamedTuple(bucketclass.__name__ + "Count",
-                                      [("count", int)] + list(bucketclass.__annotations__.items()))
-        # TODO: countme_prelim "table" for prelim output
-        self._writer = make_writer(outformat, self._fp, self._countclass, timefield='weeknum', tablename='countme_totals')
-    @staticmethod
-    def sortkey(bucketcount):
-        bucket, count = bucketcount
-        # Sort by date (old->new), then count (high->low), then other fields.
-        return (bucket.weeknum, -count) + bucket
-    def writecounts(self, counts):
-        self._writer.write_header()
-        for bucket, count in sorted(counts.items(), key=self.sortkey):
-            countitem = self._countclass._make((count,)+bucket)
-            self._writer.write_item(countitem)
-        self._writer.write_index()
 
 
 def main():
     args = parse_args()
 
-    # Just a plain ol' Counter
-    count = Counter()
+    # Initialize the writer (better to fail early..)
+    totals = SQLiteWriter(args.countme_totals, TotalsItem,
+                          timefield='weeknum',
+                          tablename='countme_totals')
+    totals.write_header()
 
-    # Here's the function that finds the bucket for a given item.
-    item_bucket = CountmeBucket.from_item
+    # Are we doing an update?
+    if args.countme_raw:
+        rawdb = RawDB(args.countme_raw)
 
-    # Initialize the writer (better to fail early than after all the counting)
-    writer = CountWriter(args.format, args.output, CountmeBucket)
+        # Check to see if there's any new weeks to get data for
+        complete_weeks = sorted(rawdb.complete_weeks())
+        newest_totals = totals.maxtime() or -1
+        new_weeks = [w for w in complete_weeks if w > newest_totals]
 
-    # Okay, start reading and counting!
-    for inf in args.infiles:
-        for item in args.reader(inf, CountmeItem):
-            bucket = item_bucket(item)
-            count[bucket] += 1
+        # Count week by week
+        for week in new_weeks:
 
-    # TODO: how do we split preliminary counts from final ones?
+            # Set up a progress meter and counter
+            mon, sun = daterange(week)
+            desc = f"week {week} ({mon} -- {sun})"
+            total = rawdb.week_count(week)
+            prog = Progress(total=total, desc=desc, disable=True if not args.progress else None, unit="row", unit_scale=False)
+            counts = Counter()
 
-    writer.writecounts(count)
+            # Select raw items into their buckets and count 'em up
+            for item in rawdb.week_iter(week, select=BucketSelect):
+                counts[item] += 1
+                prog.update()
+
+            # Write the resulting totals into countme_totals
+            totals.write_items((count,)+bucket for bucket,count in counts.items())
+            prog.close()
+
+        # Oh and make sure we index them by time.
+        totals.write_index()
+
+
+    # Was a CSV dump requested?
+    if args.csv_dump:
+        totalreader = SQLiteReader(args.countme_totals, TotalsItem,
+                                   timefield='weeknum',
+                                   tablename='countme_totals')
+        writer = CSVWriter(args.csv_dump, CSVCountItem,
+                           timefield='week_start')
+        writer.write_header()
+        for item in totalreader:
+            writer.write_item(CSVCountItem.from_totalitem(item))
 
 
 if __name__ == '__main__':
