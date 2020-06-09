@@ -274,10 +274,15 @@ class SQLiteWriter(ItemWriter):
         typehint = self._itemtuple.__annotations__[fieldname]
         return self.SQL_TYPE.get(typehint, "TEXT")
     def _get_writer(self, tablename='countme_raw', **kwargs):
-        self._tablename = tablename
         import sqlite3
-        self._con = sqlite3.connect(self._fp.name)
+        if hasattr(self._fp, "name"):
+            filename = self._fp.name
+        else:
+            filename = self._fp
+        self._con = sqlite3.connect(f"file:{filename}?mode=rwc", uri=True)
         self._cur = self._con.cursor()
+        self._tablename = tablename
+        self._filename = filename
         # Generate SQL commands so we can use them later.
         # self._create_table creates the table, with column names and types
         # matching the names and types of the fields in self._itemtuple.
@@ -314,12 +319,16 @@ class SQLiteWriter(ItemWriter):
         self._cur.execute(self._create_time_index)
         self._con.commit()
     def has_item(self, item):
+        '''Return True if a row matching `item` exists in this database.'''
         condition = " AND ".join(f"{field}=?" for field in self._fields)
-        self._cur.execute(f"SELECT COUNT(*) FROM {self._tablename} WHERE {condition}",item)
-        return bool(self._cur.fetchone()[0])
-    def _distinct(self, column):
-        cur = self._con.execute(f"SELECT DISTINCT({column}) FROM {self._tablename}")
-        return tuple(r[0] for r in cur)
+        cur = self._cur.execute(f"SELECT COUNT(*) FROM {self._tablename} WHERE {condition}",item)
+        return bool(cur.fetchone()[0])
+    def mintime(self):
+        cur = self._cur.execute(f"SELECT MIN({self._timefield}) FROM {self._tablename}")
+        return cur.fetchone()[0]
+    def maxtime(self):
+        cur = self._cur.execute(f"SELECT MAX({self._timefield}) FROM {self._tablename}")
+        return cur.fetchone()[0]
 
 def make_writer(name, *args, **kwargs):
     '''Convenience function to grab/instantiate the right writer'''
@@ -406,12 +415,18 @@ class JSONReader(CSVReader):
         self._reader = (json.loads(line) for line in self._fp)
 
 class SQLiteReader(ItemReader):
-    def _get_reader(self, tablename='countme_raw', **kwargs):
+    def _get_reader(self, tablename='countme_raw', timefield="timestamp", **kwargs):
         import sqlite3
-        self._con = sqlite3.connect(self._fp.name)
-        # TODO: self._con.set_progress_handler(handler, call_interval)
+        if hasattr(self._fp, "name"):
+            filename = self._fp.name
+        else:
+            filename = self._fp
+        #self._con = sqlite3.connect(f"file:{filename}?mode=ro", uri=True)
+        self._con = sqlite3.connect(filename)
         self._cur = self._con.cursor()
         self._tablename = tablename
+        self._timefield = timefield
+        self._filename = filename
     def _get_fields(self):
         fields_sql = f"PRAGMA table_info('{self._tablename}')"
         filefields = tuple(r[1] for r in self._cur.execute(fields_sql))
@@ -423,6 +438,12 @@ class SQLiteReader(ItemReader):
     def _iter_rows(self):
         fields = ",".join(self._itemfields)
         return self._cur.execute(f"SELECT {fields} FROM {self._tablename}")
+    def mintime(self):
+        cur = self._cur.execute(f"SELECT MIN({self._timefield}) FROM {self._tablename}")
+        return cur.fetchone()[0]
+    def maxtime(self):
+        cur = self._cur.execute(f"SELECT MAX({self._timefield}) FROM {self._tablename}")
+        return cur.fetchone()[0]
 
 # Guess the right reader based on the filename.
 def guessreader(fp):
