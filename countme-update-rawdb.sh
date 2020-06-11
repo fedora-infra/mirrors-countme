@@ -10,9 +10,11 @@ F32_BRANCH="2020-02-11"      # Fedora 32 is where we turned 'countme' on
 MIN_LOG_TIMESTAMP=1581379200 # Timestamp for F32_BRANCH
 LOG_JITTER_WINDOW=600        # A safe window for out-of-order log entries
 
-STATS_MOUNT="/mnt/fedora_stats"
 PARSECMD="./parse-access-log.py"
-DEFAULT_RAWDB="$STATS_MOUNT/data/countme/raw.db"
+STATS_MOUNT="/mnt/fedora_stats"
+STATS_DIR="$STATS_MOUNT/data/countme"
+
+DEFAULT_RAWDB="$STATS_DIR/raw.db"
 DEFAULT_LOGDIR="$STATS_MOUNT/combined-http"
 DEFAULT_LOGFMT="%Y/%m/%d/mirrors.fedoraproject.org-access.log"
 
@@ -80,16 +82,45 @@ rawdb_lastlog_date() {
 # print msg to stderr and exit.
 die() { echo "${0##*/}: $@" >&2; exit 2; }
 
+usage() {
+    cat <<__USAGE__
+usage: ${0##*/} [OPTIONS..]
+Find "countme=N" items in daily httpd logs and put them in a SQLite database.
+
+If the database exists, starts from the day after the last database item.
+Otherwise, starts from Fedora 32 branch date ($F32_BRANCH).
+
+Regardless of start date, '$PARSECMD' will skip a log file
+if the first match is already present in the output database.
+
+Options:
+  -h,--help        Show this help
+  -n,--dryrun      Don't do anything, just show the command
+  --progress       Show progress bars while parsing
+  --logdir LOGDIR  Directory where rotated httpd logs are stored
+  --logfmt LOGFMT  Format string for daily logs (date(1) FORMAT)
+  --rawdb RAWDB    "countme-raw" database to update
+  --all            Examine all logs from $F32_BRANCH onward
+  --start DATESTR  Examine logs from DATESTR onward (date(1) DATE STRING)
+
+Defaults:
+  RAWDB     $DEFAULT_RAWDB
+  LOGDIR    $DEFAULT_LOGDIR
+  LOGFMT    $DEFAULT_LOGFMT
+__USAGE__
+}
+
 LOGDIR="$DEFAULT_LOGDIR"
 LOGFMT="$DEFAULT_LOGFMT"
 RAWDB="$DEFAULT_RAWDB"
 STARTDATE=""
 DRYRUN=""
+VERBOSE=""
 PROGRESS=""
 PARSECMD_ARGS=()
 
-options=$(getopt -o hn \
-    --long help,dryrun,progress,logdir:,logfmt:,rawdb:,newer: \
+options=$(getopt -o hvn \
+    --long help,verbose,dryrun,progress,logdir:,logfmt:,rawdb:,newer: \
     -- "$@" \
 )
 eval set -- "$options"
@@ -100,20 +131,26 @@ while true; do
         --logdir) LOGDIR="$1"; shift ;;
         --logfmt) LOGFMT="$1"; shift ;;
         --rawdb) RAWDB="$1"; shift ;;
-        --newer) STARTDATE="$1"; shift ;;
+        --start) STARTDATE="$1"; shift ;;
         --all) STARTDATE="$F32_BRANCH" ;;
         --progress) PROGRESS=1 ;;
         -n|--dryrun) DRYRUN=1 ;;
+        -v|--verbose) VERBOSE=1 ;;
         -h|--help) usage; exit 0 ;;
         --) break ;;
     esac
 done
 
-[ -n "$STARTDATE" ] && STARTDATE=$(rawdb_lastlog_date $RAWDB)
 [ -n "$DRYRUN" ] && PARSECMD="echo $PARSECMD"
+[ -n "$VERBOSE" ] && vecho() { echo "$@"; } || vecho() { return 0; }
 [ -n "$PROGRESS" ] && PARSECMD_ARGS+=(--progress)
 PARSECMD_ARGS+=(--sqlite $RAWDB)
 
+[ -z "$STARTDATE" -a -f "$RAWDB" ] && STARTDATE=$(rawdb_lastlog_date $RAWDB)
+[ -z "$STARTDATE" ] && STARTDATE="$F32_BRANCH"
+
+vecho "Date range: $STARTDATE -- today"
+vecho "Logdir: $LOGDIR"
 
 ###
 ### Okay, we've handled the CLI options, let's actually find & parse logs!
@@ -121,12 +158,10 @@ PARSECMD_ARGS+=(--sqlite $RAWDB)
 
 # Find logs to parse
 COUNTME_LOGS=()
-for log in $(date_seq $start_date today $LOGDIR/$LOGFMT); do
-    if [ -f "$log" ]; then COUNTME_LOGS+=($log); fi
+for log in $(date_seq $STARTDATE today $LOGDIR/$LOGFMT); do
+    [ -f "$log" ] && COUNTME_LOGS+=($log) || vecho "  $log not found"
 done
 
-if [ -z "$DRYRUN" ]; then
-    [ "${#COUNTME_LOGS[@]}" == 0 ] && die "nothing matching '$LOGFMT' under '$LOGDIR'"
-fi
+[ "${#COUNTME_LOGS[@]}" == 0 ] && die "no match for '$LOGDIR/$LOGFMT'"
 
 $PARSECMD "${PARSECMD_ARGS[@]}" "${COUNTME_LOGS[@]}"
