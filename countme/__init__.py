@@ -152,7 +152,7 @@ class CountmeItem(NamedTuple):
     os_version: str
     os_variant: str
     os_arch: str
-    countme: int
+    sys_age: int
     repo_tag: str
     repo_arch: str
 
@@ -202,7 +202,7 @@ class CountmeMatcher(LogMatcher):
                              os_version = match['os_version'],
                              os_variant = match['os_variant'],
                              os_arch    = match['os_arch'],
-                             countme    = int(query.get('countme')),
+                             sys_age    = int(query.get('countme')),
                              repo_tag   = query.get('repo'),
                              repo_arch  = query.get('arch'))
 

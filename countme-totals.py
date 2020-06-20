@@ -54,7 +54,7 @@ class CountBucket(NamedTuple):
     os_version: str
     os_variant: str
     os_arch: str
-    countme: int
+    sys_age: int
     repo_tag: str
     repo_arch: str
 
@@ -68,13 +68,13 @@ BucketSelect = CountBucket(
     os_version = "os_version",
     os_variant = "os_variant",
     os_arch = "os_arch",
-    countme = "countme",
+    sys_age = "sys_age",
     repo_tag = "repo_tag",
     repo_arch = "repo_arch"
 )
 
-TotalsItem = NamedTuple("TotalsItem", [("count", int)] + list(CountBucket.__annotations__.items()))
-TotalsItem.__doc__ = '''TotalsItem is CountBucket with a "count" on the front.'''
+TotalsItem = NamedTuple("TotalsItem", [("hits", int)] + list(CountBucket.__annotations__.items()))
+TotalsItem.__doc__ = '''TotalsItem is CountBucket with a "hits" count on the front.'''
 
 class CSVCountItem(NamedTuple):
     '''
@@ -84,21 +84,21 @@ class CSVCountItem(NamedTuple):
     '''
     week_start: str
     week_end: str
-    count: int
+    hits: int
     os_name: str
     os_version: str
     os_variant: str
     os_arch: str
-    countme: int
+    sys_age: int
     repo_tag: str
     repo_arch: str
 
     @classmethod
     def from_totalitem(cls, item):
         '''Use this method to convert a CountItem to a CSVCountItem.'''
-        count, weeknum, *rest = item
+        hits, weeknum, *rest = item
         week_start, week_end = daterange(weeknum)
-        return cls._make([week_start, week_end, count] + rest)
+        return cls._make([week_start, week_end, hits] + rest)
 
 # ===========================================================================
 # ====== SQL + Progress helpers =============================================
@@ -211,15 +211,15 @@ def main():
             desc = f"week {week} ({mon} -- {sun})"
             total = rawdb.week_count(week)
             prog = Progress(total=total, desc=desc, disable=True if not args.progress else None, unit="row", unit_scale=False)
-            counts = Counter()
+            hitcount = Counter()
 
             # Select raw items into their buckets and count 'em up
-            for item in rawdb.week_iter(week, select=BucketSelect):
-                counts[item] += 1
+            for bucket in rawdb.week_iter(week, select=BucketSelect):
+                hitcount[bucket] += 1
                 prog.update()
 
             # Write the resulting totals into countme_totals
-            totals.write_items((count,)+bucket for bucket,count in counts.items())
+            totals.write_items((hits,)+bucket for bucket,hits in hitcount.items())
             prog.close()
 
         # Oh and make sure we index them by time.

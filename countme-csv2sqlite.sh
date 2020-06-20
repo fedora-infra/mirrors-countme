@@ -15,17 +15,20 @@ if [ ! -r "$COUNTME_CSV" ]; then
     exit 2
 fi
 
+# TODO: CLI switch for weeknum or week_start+week_end
+# TODO: maybe other schemas (schemata?) too?
+
 sqlite3 "$COUNTME_SQLITE" <<__SQLITE__
 .bail on
 CREATE TABLE $COUNTME_TABLE (
     week_start DATETIME NOT NULL,
     week_end   DATETIME NOT NULL,
-    count      INTEGER NOT NULL,
+    hits       INTEGER NOT NULL,
     os_name    TEXT NOT NULL,
     os_version TEXT NOT NULL,
     os_variant TEXT NOT NULL,
     os_arch    TEXT NOT NULL,
-    countme    INTEGER NOT NULL,
+    sys_age    INTEGER NOT NULL,
     repo_tag   TEXT NOT NULL,
     repo_arch  TEXT NOT NULL
 );
