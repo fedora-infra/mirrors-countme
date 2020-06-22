@@ -95,6 +95,7 @@ if the first match is already present in the output database.
 
 Options:
   -h,--help        Show this help
+  -v,--verbose     Show what's happening while finding logs etc.
   -n,--dryrun      Don't do anything, just show the command
   --progress       Show progress bars while parsing
   --logdir LOGDIR  Directory where rotated httpd logs are stored
@@ -120,7 +121,7 @@ PROGRESS=""
 PARSECMD_ARGS=()
 
 options=$(getopt -o hvn \
-    --long help,verbose,dryrun,progress,logdir:,logfmt:,rawdb:,newer: \
+    --long help,verbose,dryrun,progress,logdir:,logfmt:,rawdb: \
     -- "$@" \
 )
 eval set -- "$options"
