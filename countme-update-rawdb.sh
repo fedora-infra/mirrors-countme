@@ -78,13 +78,16 @@ rawdb_lastlog_date() {
 ### Here's the CLI options and CLI parsing stuff.
 ###
 
+# Basename of the script
+PROGNAME="${0##*/}"
+
 # die msg...
 # print msg to stderr and exit.
-die() { echo "${0##*/}: $@" >&2; exit 2; }
+die() { echo "$PROGNAME: $@" >&2; exit 2; }
 
 usage() {
     cat <<__USAGE__
-usage: ${0##*/} [OPTIONS..]
+usage: $PROGNAME [OPTIONS..]
 Find "countme=N" items in daily httpd logs and put them in a SQLite database.
 
 If the database exists, starts from the day after the last database item.
@@ -120,10 +123,11 @@ VERBOSE=""
 PROGRESS=""
 PARSECMD_ARGS=()
 
-options=$(getopt -o hvn \
+options=$(getopt --name "$PROGNAME" \
+    --options hvn \
     --long help,verbose,dryrun,progress,logdir:,logfmt:,rawdb:,all,start: \
     -- "$@" \
-)
+) || exit 1
 eval set -- "$options"
 
 while true; do

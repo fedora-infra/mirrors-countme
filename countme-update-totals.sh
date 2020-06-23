@@ -19,14 +19,16 @@ DEFAULT_TOTALSCSV="$OUTPUT_DIR/countme-totals.csv"
 ### Option defaults and CLI parsing code
 ###
 
+# Basename of the script
+PROGNAME="${0##*/}"
 
 # die msg...
 # print msg to stderr and exit.
-die() { echo "${0##*/}: $@" >&2; exit 2; }
+die() { echo "$PROGNAME: $@" >&2; exit 2; }
 
 usage() {
     cat <<__USAGE__
-usage: ${0##*/} [OPTIONS..]
+usage: $PROGNAME [OPTIONS..]
 Read "countme-raw" database, count hits, and write SQLite + CSV output.
 Only writes data for complete weeks that are not in the output database.
 See '$COUNTCMD' for more details.
@@ -53,10 +55,11 @@ PROGRESS=""
 DRYRUN=""
 COUNTCMD_ARGS=()
 
-options=$(getopt -o hn \
+options=$(getopt --name "$PROGNAME" \
+    --options hn \
     --long help,dryrun,progress,rawdb:,totals-db:,totals-csv: \
     -- "$@" \
-)
+) || exit 1
 eval set -- "$options"
 
 while true; do
