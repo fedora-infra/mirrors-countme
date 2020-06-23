@@ -34,6 +34,45 @@ def log_date(line):
         return match['date']
     return "??/??/????"
 
+def log_reader(logfn):
+    if logfn.endswith(".xz"):
+        import lzma
+        return lzma.open(logfn, mode='rt')
+    elif logfn.endswith(".gz"):
+        import gzip
+        return gzip.open(logfn, mode='rt')
+    else:
+        return open(logfn, mode='rt')
+
+def xz_log_size(xz_filename):
+    import subprocess
+    cmd = ["xz", "--list", "--robot", xz_filename]
+    r = subprocess.run(cmd, stdout=subprocess.PIPE)
+    if r.returncode != 0:
+        return None
+    for line in r.stdout.split(b'\n'):
+        f = line.split(b'\t')
+        if f[0] == b'totals':
+            return int(f[4])
+
+def gz_log_size(gz_filename):
+    import subprocess
+    cmd = ["gzip", "--quiet", "--list", gz_filename]
+    r = subprocess.run(cmd, stdout=subprocess.PIPE)
+    if r.returncode != 0:
+        return None
+    csize, uncsize, ratio, name = r.stdout.split()
+    return int(uncsize)
+
+def log_total_size(logfn):
+    if logfn.endswith(".xz"):
+        return xz_log_size(logfn)
+    elif logfn.endswith(".gz"):
+        return gz_log_size(logfn)
+    else:
+        return os.stat(logfn).st_size
+
+
 class ReadProgressBase:
     def __init__(self, logs, display=True):
         '''logs should be a sequence of line-iterable file-like objects.
@@ -44,26 +83,15 @@ class ReadProgressBase:
     def __iter__(self):
         '''Iterator for ReadProgress; yields a sequence of line-iterable
         file-like objects (one for each log in logs).'''
-        for num, logf in enumerate(self.logs):
-            self._prog_setup(logf, num)
-            yield self._iter_log_lines(logf, num)
-            self._prog_close(logf, num)
+        for num, logfn in enumerate(self.logs):
+            logf = log_reader(logfn)
+            total = log_total_size(logfn)
+            yield self._iter_log_lines(logf, num, total)
 
-    def _iter_log_lines(self, logf, lognum):
-        raise NotImplementedError
-
-
-# Here's how we use the tqdm progress module to show read progress.
-class TQDMReadProgress(ReadProgressBase):
-    def _prog_setup(self, logf, num):
+    def _iter_log_lines(self, logf, num, total):
         # Make a progress meter for this file
-        self.prog = tqdm(unit="B", unit_scale=True, unit_divisor=1024,
-                         total=os.stat(logf.name).st_size,
-                         disable=True if not self.display else None)
-
-    def _iter_log_lines(self, logf, num):
-        # Make a progress meter for this file
-        prog = self.prog
+        prog = self._progress_obj(unit='b', unit_scale=True, total=total,
+                                  disable=True if not self.display else None)
         # Get the first line manually so we can get logdate
         line = next(logf)
         desc = f"log {num+1}/{len(self.logs)}, date={log_date(line)}"
@@ -75,15 +103,18 @@ class TQDMReadProgress(ReadProgressBase):
         for line in logf:
             prog.update(len(line))
             yield line
+        prog.close()
 
-    def _prog_close(self, logf, num):
-        self.prog.close()
+
+# Here's how we use the tqdm progress module to show read progress.
+class TQDMReadProgress(ReadProgressBase):
+    def _progress_obj(self, *args, **kwargs):
+        return tqdm(*args, **kwargs)
 
 # No TQDM? Use our little do-it-yourself knockoff version.
 class DIYReadProgress(TQDMReadProgress):
-    def _prog_setup(self, logf, num):
-        self.prog = diyprog(total=os.stat(logf.name).st_size,
-                            disable=True if not self.display else None)
+    def _progress_obj(self, *args, **kwargs):
+        return diyprog(*args, **kwargs)
 
 class diyprog:
     def __init__(self, desc=None, total=None, file=None, disable=False,

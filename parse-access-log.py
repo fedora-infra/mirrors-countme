@@ -41,8 +41,7 @@ def parse_args(argv=None):
     p.add_argument("-V", "--version", action='version',
         version='%(prog)s 0.0.1')
 
-    p.add_argument("logs", metavar="LOG",
-        type=argparse.FileType('rt', encoding='utf-8'), nargs='+',
+    p.add_argument("logs", metavar="LOG", nargs='+',
         help="access_log file(s) to parse")
 
     p.add_argument("--progress", action="store_true",
