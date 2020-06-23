@@ -121,7 +121,7 @@ PROGRESS=""
 PARSECMD_ARGS=()
 
 options=$(getopt -o hvn \
-    --long help,verbose,dryrun,progress,logdir:,logfmt:,rawdb: \
+    --long help,verbose,dryrun,progress,logdir:,logfmt:,rawdb:,all,start: \
     -- "$@" \
 )
 eval set -- "$options"
