@@ -157,10 +157,27 @@ vecho "Logdir: $LOGDIR"
 ### Okay, we've handled the CLI options, let's actually find & parse logs!
 ###
 
+find_compressed() {
+    local fn="$1" ext=''
+    for ext in zst zstd lz4 lzo gz xz zst zstd; do
+        if [ -f "${fn}.${ext}" ]; then
+            echo "${fn}.${ext}"
+            return 0
+        fi
+    done
+    return 1
+}
+
 # Find logs to parse
 COUNTME_LOGS=()
-for log in $(date_seq $STARTDATE today $LOGDIR/$LOGFMT); do
-    [ -f "$log" ] && COUNTME_LOGS+=($log) || vecho "  $log not found"
+for logstr in $(date_seq $STARTDATE today $LOGDIR/$LOGFMT); do
+    if [ -f "$logstr" ]; then
+        COUNTME_LOGS+=($logstr)
+    elif logz=$(find_compressed "$logstr"); then
+        COUNTME_LOGS+=($logz)
+    else
+        vecho  "  no match for '$logstr'"
+    fi
 done
 
 [ "${#COUNTME_LOGS[@]}" == 0 ] && die "no match for '$LOGDIR/$LOGFMT'"
