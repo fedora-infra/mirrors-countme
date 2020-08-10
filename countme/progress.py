@@ -18,6 +18,7 @@
 # Author: Will Woods <wwoods@redhat.com>
 
 import os
+import sys
 from .regex import compile_log_regex, LOG_DATE_RE
 
 __all__ = (
@@ -122,7 +123,7 @@ class diyprog:
         # COMPAT NOTE: tqdm objects with disable=True have no .desc attribute
         self.desc = desc
         self.total = total
-        self.file = file
+        self.file = sys.stderr if file is None else file
         self.disable = disable
         self.unit = unit
         self.unit_scale = unit_scale
