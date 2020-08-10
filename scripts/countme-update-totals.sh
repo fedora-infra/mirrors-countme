@@ -6,7 +6,7 @@
 ###
 
 # Constants and paths
-COUNTCMD="./countme-totals.py"
+COUNTCMD="countme-totals.py"
 STATS_MOUNT="/mnt/fedora_stats"
 STATS_DIR="$STATS_MOUNT/data/countme"
 OUTPUT_DIR="/var/lib/countme"

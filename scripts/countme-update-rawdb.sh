@@ -10,7 +10,7 @@ F32_BRANCH="2020-02-11"      # Fedora 32 is where we turned 'countme' on
 MIN_LOG_TIMESTAMP=1581379200 # Timestamp for F32_BRANCH
 LOG_JITTER_WINDOW=600        # A safe window for out-of-order log entries
 
-PARSECMD="./parse-access-log.py"
+PARSECMD="parse-access-log.py"
 STATS_MOUNT="/mnt/fedora_stats"
 STATS_DIR="$STATS_MOUNT/data/countme"
 
