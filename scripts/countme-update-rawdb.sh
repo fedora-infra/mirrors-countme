@@ -12,9 +12,9 @@ LOG_JITTER_WINDOW=600        # A safe window for out-of-order log entries
 
 PARSECMD="parse-access-log.py"
 STATS_MOUNT="/mnt/fedora_stats"
-STATS_DIR="$STATS_MOUNT/data/countme"
+OUTPUT_DIR="/var/lib/countme"
 
-DEFAULT_RAWDB="$STATS_DIR/raw.db"
+DEFAULT_RAWDB="/var/lib/countme/raw.db"
 DEFAULT_LOGDIR="$STATS_MOUNT/combined-http"
 DEFAULT_LOGFMT="%Y/%m/%d/mirrors.fedoraproject.org-access.log"
 

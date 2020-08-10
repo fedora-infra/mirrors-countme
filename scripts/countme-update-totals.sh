@@ -7,13 +7,11 @@
 
 # Constants and paths
 COUNTCMD="countme-totals.py"
-STATS_MOUNT="/mnt/fedora_stats"
-STATS_DIR="$STATS_MOUNT/data/countme"
 OUTPUT_DIR="/var/lib/countme"
 
-DEFAULT_RAWDB="$STATS_DIR/raw.db"
-DEFAULT_TOTALSDB="$OUTPUT_DIR/countme-totals.db"
-DEFAULT_TOTALSCSV="$OUTPUT_DIR/countme-totals.csv"
+DEFAULT_RAWDB="$OUTPUT_DIR/raw.db"
+DEFAULT_TOTALSDB="$OUTPUT_DIR/totals.db"
+DEFAULT_TOTALSCSV="$OUTPUT_DIR/totals.csv"
 
 ###
 ### Option defaults and CLI parsing code
