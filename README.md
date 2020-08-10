@@ -181,9 +181,35 @@ first installed. The values are:
 These are defined in [libdnf/repo/Repo.cpp:COUNTME\_BUCKETS].
 
 
+## OK but how do we actually use it in Fedora?
 
+Because the raw log data contains IP and timestamps that could be used to
+track or identify users, we run the parsing and counting inside private parts
+of the Fedora infrastructure and only publish the anonymous aggregate data.
 
+In practice, this is a three-part process:
 
+1. Run `countme-update-rawdb.sh` daily to parse log data into `rawdb`
+  * `rawdb` is a SQLite database of structured data for each `countme` hit
+  * Kept private since it contains IP addresses and timestamps
+  * Typical log data: ~6GB/day
+  * Typical parsing time: ~5min (Intel Core i7-6770HQ, 2.60GHz)
+  * Typical rawdb size: ~8MB/day for F32; I'd guess keeping 1 year of data for
+    3 concurrent releases would take about 10GB.
+  * Retaining historical data lets us quickly recalculate counts if we
+    discover significant errors due to misconfigured/malicious clients
+2. Run `countme-update-totals.sh` to read `rawdb` and update `totalsdb`
+  * Counts up hits for each week, grouped by:
+    * System info: `os_name`, `os_version`, `os_variant`, `os_arch`, `sys_age`
+    * Repo requested: `repo_tag`, `repo_arch`
+  * Only generates data for weeks where we have complete log data
+  * No timestamps or IP addresses
+  * Typical parsing time: small, <=~5s
+  * Typical totalsdb size: ~55KB/week (~700 rows/week) for F32
+  * After update, (re)generate `totals.csv`
+3. Publish updated `totals.db` and `totals.csv`
+  * See https://data-analysis.fedoraproject.org/csv-reports/countme/
+  * Might end up in different places/forms in the future
 
 [^IPvBeefy]: Don't worry, 240.159.140.173 is a fake IP address. Actually,
              it's the 4-byte UTF-8 encoding for &#x1f32d;, U+1F32D HOT DOG.
