@@ -17,20 +17,13 @@
 #
 # Author: Will Woods <wwoods@redhat.com>
 #
-# The main point of this script, as it says above, is parsing access_log to
+# The reason this module exists, as it says above, is for parsing access_logs
 # structured data. I'm trying to avoid packing Fedora-specific data-massaging
 # into this; tools further down the pipeline can be responsible for figuring
-# out how to group "updates-released-f32" and "fedora-modular-source-32".
+# out what arches are valid or whether to group "updates-released-f32" and
+# "fedora-modular-source-32" hits into the same buckets.
 
-import os
-import re
-from datetime import date, time, datetime, timezone, timedelta
-from urllib.parse import parse_qsl
-from typing import NamedTuple, Optional
-
-from .regex import COUNTME_LOG_RE, MIRRORS_LOG_RE
-
-# TODO: clean this up so it only exports the common/needed bits
+# TODO: this should probably get cleaned up?
 __all__ = (
     'weeknum', 'parse_logtime', 'parse_querydict',
 
@@ -42,6 +35,15 @@ __all__ = (
     'LogItem',    'MirrorItem',    'CountmeItem',
     'LogMatcher', 'MirrorMatcher', 'CountmeMatcher',
 )
+
+import os
+import re
+from datetime import date, time, datetime, timezone, timedelta
+from urllib.parse import parse_qsl
+from typing import NamedTuple, Optional
+
+from .regex import COUNTME_LOG_RE, MIRRORS_LOG_RE
+from .version import __version__, __version_info__
 
 # ===========================================================================
 # ====== Output item definitions and helpers ================================
