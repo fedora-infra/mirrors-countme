@@ -102,6 +102,10 @@ def main():
         # Make an iterator object for the matching log lines
         match_iter = iter(args.matcher(logf))
 
+        # TEMP WORKAROUND: filter out match items with missing values
+        if args.matchmode == "countme":
+            match_iter = filter(lambda i: None not in i, match_iter)
+
         # Duplicate data check (for sqlite output)
         if args.dupcheck:
             item = next(match_iter)             # grab first matching item
