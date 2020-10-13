@@ -3,7 +3,7 @@
 %global modname countme
 
 Name:    python-%{srcname}
-Version: 0.0.1
+Version: 0.0.2
 Release: 1%{?dist}
 Summary: access_log parsing & host counting for DNF mirrors
 URL:     https://pagure.io/mirrors-countme
