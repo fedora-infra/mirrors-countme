@@ -21,7 +21,7 @@ import re
 
 __all__ = (
     'compile_log_regex',
-    'LOG_RE', 'LIBDNF_USER_AGENT_RE',
+    'LOG_RE', 'LIBDNF_USER_AGENT_RE', 'COUNTME_USER_AGENT_RE',
     'MIRRORS_LOG_RE', 'COUNTME_LOG_RE', 'LOG_DATE_RE',
 )
 
@@ -83,15 +83,16 @@ LOG_PATTERN_FIELDS = {
     'user_agent': '.+?',
 }
 
-# A regex for libdnf user-agent strings.
+# A regex for libdnf/rpm-ostree user-agent strings.
 # Examples:
 #   "libdnf/0.35.5 (Fedora 32; workstation; Linux.x86_64)"
 #   "libdnf (Fedora 32; generic; Linux.x86_64)"
+#   "rpm-ostree (Fedora 33; coreos; Linux.x86_64)"
 #
 # The format, according to libdnf/utils/os-release.cpp:getUserAgent():
 #   f"{USER_AGENT} ({os_name} {os_version}; {os_variant}; {os_canon}.{os_arch})"
 # where:
-#   USER_AGENT = "libdnf" or "libdnf/{LIBDNF_VERSION}"
+#   USER_AGENT = "libdnf" or "libdnf/{LIBDNF_VERSION}" or "rpm-ostree"
 #   os_name    = os-release NAME
 #   os_version = os-release VERSION_ID
 #   os_variant = os-release VARIANT_ID
@@ -103,8 +104,8 @@ LOG_PATTERN_FIELDS = {
 #
 # For more info on the User-Agent header, see RFC7231, Section 5.5.3:
 #   https://tools.ietf.org/html/rfc7231#section-5.5.3)
-LIBDNF_USER_AGENT_PATTERN = (
-    r'(?P<product>libdnf(?:/(?P<product_version>\S+))?)\s+'
+COUNTME_USER_AGENT_PATTERN = (
+    r'(?P<product>(libdnf(?:/(?P<product_version>\S+)))|rpm-ostree?)\s+'
     r'\('
       r'(?P<os_name>.*)\s'
       r'(?P<os_version>[0-9a-z._-]*?);\s'
@@ -113,7 +114,8 @@ LIBDNF_USER_AGENT_PATTERN = (
       r'(?P<os_arch>\w+)'
     r'\)'
 )
-LIBDNF_USER_AGENT_RE = re.compile(LIBDNF_USER_AGENT_PATTERN)
+COUNTME_USER_AGENT_RE = re.compile(COUNTME_USER_AGENT_PATTERN)
+LIBDNF_USER_AGENT_RE = re.compile(COUNTME_USER_AGENT_PATTERN)
 
 # Helper function for making compiled log-matching regexes.
 def compile_log_regex(flags=0, ascii=True, query_present=None, **kwargs):
@@ -160,12 +162,12 @@ MIRRORS_LOG_RE = compile_log_regex(path=r'/metalink|/mirrorlist')
 #   * that have a query string containing "&countme=\d+",
 #   * with libdnf's User-Agent string (see above).
 COUNTME_LOG_RE = compile_log_regex(
-    method        = "GET",
+    method        = "GET|HEAD",
     query_present = True,
     path          = r'/metalink|/mirrorlist',
     query         = r'\S+&countme=\d+\S*',
     status        = r'200|302',
-    user_agent    = LIBDNF_USER_AGENT_PATTERN,
+    user_agent    = COUNTME_USER_AGENT_PATTERN,
 )
 
 # Regex for pulling the date out of a log line
