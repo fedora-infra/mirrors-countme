@@ -108,7 +108,11 @@ def main():
 
         # Duplicate data check (for sqlite output)
         if args.dupcheck:
-            item = next(match_iter)             # grab first matching item
+            try:
+                item = next(match_iter)             # grab first matching item
+            except StopIteration:
+                # If there is no next match, keep going
+                continue
             if args.writer.has_item(item):      # if it's already in the db...
                 continue                        #   skip to next log
             else:                               # otherwise
