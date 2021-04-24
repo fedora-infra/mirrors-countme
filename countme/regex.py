@@ -105,7 +105,7 @@ LOG_PATTERN_FIELDS = {
 # For more info on the User-Agent header, see RFC7231, Section 5.5.3:
 #   https://tools.ietf.org/html/rfc7231#section-5.5.3)
 COUNTME_USER_AGENT_PATTERN = (
-    r'(?P<product>(libdnf(?:/(?P<product_version>\S+)))|rpm-ostree?)\s+'
+    r'(?P<product>(libdnf|rpm-ostree)(?:/(?P<product_version>\S+))?)\s+'
     r'\('
       r'(?P<os_name>.*)\s'
       r'(?P<os_version>[0-9a-z._-]*?);\s'
