@@ -1,7 +1,5 @@
 #!/usr/bin/python3
 
-import sys
-import sqlite3
 import argparse
 import datetime
 from collections import Counter
@@ -26,27 +24,32 @@ LOG_JITTER_WINDOW = 600
 
 # Feb 11 2020 was the date that we branched F32 from Rawhide, so we've decided
 # to use that as the starting week for countme data.
-COUNTME_START_TIME=1581292800 # =Mon Feb 10 00:00:00 2020 (UTC)
-COUNTME_START_WEEKNUM=2614
+COUNTME_START_TIME = 1581292800  # =Mon Feb 10 00:00:00 2020 (UTC)
+COUNTME_START_WEEKNUM = 2614
 
-DAY_LEN = 24*60*60
-WEEK_LEN = 7*DAY_LEN
+DAY_LEN = 24 * 60 * 60
+WEEK_LEN = 7 * DAY_LEN
 COUNTME_EPOCH = 345600  # =00:00:00 Mon Jan 5 00:00:00 1970 (UTC)
 
 # And here's how you convert a weeknum to a human-readable date
-COUNTME_EPOCH_ORDINAL=719167
+COUNTME_EPOCH_ORDINAL = 719167
+
+
 def weekdate(weeknum, weekday=0):
     if weekday < 0 or weekday > 6:
         raise ValueError("weekday must be between 0 (Mon) and 6 (Sun)")
-    ordinal = COUNTME_EPOCH_ORDINAL + 7*weeknum + weekday
+    ordinal = COUNTME_EPOCH_ORDINAL + 7 * weeknum + weekday
     return datetime.date.fromordinal(ordinal)
 
+
 def daterange(weeknum):
-    return weekdate(weeknum,0), weekdate(weeknum,6)
+    return weekdate(weeknum, 0), weekdate(weeknum, 6)
+
 
 # ===========================================================================
 # ====== Count Buckets & Items ==============================================
 # ===========================================================================
+
 
 class CountBucket(NamedTuple):
     weeknum: int
@@ -62,26 +65,29 @@ class CountBucket(NamedTuple):
     def from_item(cls, item):
         return cls._make((weeknum(item.timestamp),) + item[2:])
 
+
 BucketSelect = CountBucket(
-    weeknum = f"((timestamp-{COUNTME_EPOCH})/{WEEK_LEN}) as weeknum",
-    os_name = "os_name",
-    os_version = "os_version",
-    os_variant = "os_variant",
-    os_arch = "os_arch",
-    sys_age = "sys_age",
-    repo_tag = "repo_tag",
-    repo_arch = "repo_arch"
+    weeknum=f"((timestamp-{COUNTME_EPOCH})/{WEEK_LEN}) as weeknum",
+    os_name="os_name",
+    os_version="os_version",
+    os_variant="os_variant",
+    os_arch="os_arch",
+    sys_age="sys_age",
+    repo_tag="repo_tag",
+    repo_arch="repo_arch",
 )
 
 TotalsItem = NamedTuple("TotalsItem", [("hits", int)] + list(CountBucket.__annotations__.items()))
-TotalsItem.__doc__ = '''TotalsItem is CountBucket with a "hits" count on the front.'''
+TotalsItem.__doc__ = """TotalsItem is CountBucket with a "hits" count on the front."""
+
 
 class CSVCountItem(NamedTuple):
-    '''
+    """
     Represents one row in a countme_totals.csv file.
     In the interest of human-readability, we replace 'weeknum' with the
     start and end dates of that week.
-    '''
+    """
+
     week_start: str
     week_end: str
     hits: int
@@ -95,28 +101,30 @@ class CSVCountItem(NamedTuple):
 
     @classmethod
     def from_totalitem(cls, item):
-        '''Use this method to convert a CountItem to a CSVCountItem.'''
+        """Use this method to convert a CountItem to a CSVCountItem."""
         hits, weeknum, *rest = item
         week_start, week_end = daterange(weeknum)
         return cls._make([week_start, week_end, hits] + rest)
+
 
 # ===========================================================================
 # ====== SQL + Progress helpers =============================================
 # ===========================================================================
 
+
 class RawDB(SQLiteReader):
     def __init__(self, fp, **kwargs):
-        super().__init__(fp, CountmeItem, tablename='countme_raw', **kwargs)
+        super().__init__(fp, CountmeItem, tablename="countme_raw", **kwargs)
 
     def _minmax(self, column):
         cur = self._con.execute(f"SELECT min({column}),max({column}) FROM {self._tablename}")
         return cur.fetchone()
 
     def complete_weeks(self):
-        '''Return a range(startweek, provweek) that covers (valid + complete)
+        """Return a range(startweek, provweek) that covers (valid + complete)
         weeknums contained in this database. The database may contain some
         data for `provweek`, but since it's provisional/incomplete it's
-        outside the range.'''
+        outside the range."""
         # startweek can't be earlier than the first week of data
         startweek = max(weeknum(self.mintime()), COUNTME_START_WEEKNUM)
         # A week is provisional until the LOG_JITTER_WINDOW expires, so once
@@ -126,27 +134,30 @@ class RawDB(SQLiteReader):
         return range(startweek, provweek)
 
     def week_count(self, weeknum):
-        start_ts = weeknum*WEEK_LEN+COUNTME_EPOCH
+        start_ts = weeknum * WEEK_LEN + COUNTME_EPOCH
         end_ts = start_ts + WEEK_LEN
         cur = self._con.execute(
             f"SELECT COUNT(*)"
             f" FROM {self._tablename}"
-            f" WHERE timestamp >= {start_ts} AND timestamp < {end_ts}")
+            f" WHERE timestamp >= {start_ts} AND timestamp < {end_ts}"
+        )
         return cur.fetchone()[0]
 
-    def week_iter(self, weeknum, select='*'):
+    def week_iter(self, weeknum, select="*"):
         if isinstance(select, (tuple, list)):
-            item_select = ','.join(select)
+            item_select = ",".join(select)
         elif isinstance(select, str):
             item_select = select
         else:
             raise ValueError(f"select should be a string or tuple, not {select.__class__.__name__}")
-        start_ts = weeknum*WEEK_LEN+COUNTME_EPOCH
+        start_ts = weeknum * WEEK_LEN + COUNTME_EPOCH
         end_ts = start_ts + WEEK_LEN
         return self._con.execute(
             f"SELECT {item_select}"
             f" FROM {self._tablename}"
-            f" WHERE timestamp >= {start_ts} AND timestamp < {end_ts}")
+            f" WHERE timestamp >= {start_ts} AND timestamp < {end_ts}"
+        )
+
 
 try:
     from tqdm import tqdm as Progress
@@ -154,31 +165,37 @@ except ImportError:
     from countme.progress import diyprog as Progress
 
 
-
 # ===========================================================================
 # ====== CLI parser & main() ================================================
 # ===========================================================================
 
+
 def parse_args(argv=None):
     p = argparse.ArgumentParser(
-        description = "Aggregate 'countme' log records to weekly totals.",
+        description="Aggregate 'countme' log records to weekly totals.",
     )
-    p.add_argument("-V", "--version", action='version',
-        version='%(prog)s 0.0.1')
+    p.add_argument("-V", "--version", action="version", version="%(prog)s 0.0.1")
 
-    p.add_argument("countme_totals",
-        help="Database containing countme_totals")
+    p.add_argument("countme_totals", help="Database containing countme_totals")
 
-    p.add_argument("--update-from",
-        metavar="COUNTME_RAW_DB", dest="countme_raw",
-        help="Update totals from raw data (from ./parse-access-log.py)")
+    p.add_argument(
+        "--update-from",
+        metavar="COUNTME_RAW_DB",
+        dest="countme_raw",
+        help="Update totals from raw data (from ./parse-access-log.py)",
+    )
 
-    p.add_argument("--csv-dump",
-        type=argparse.FileType('wt', encoding='utf-8'),
-        help="File to dump CSV-formatted totals data")
+    p.add_argument(
+        "--csv-dump",
+        type=argparse.FileType("wt", encoding="utf-8"),
+        help="File to dump CSV-formatted totals data",
+    )
 
-    p.add_argument("--progress", action="store_true",
-        help="Show progress while reading and counting data.")
+    p.add_argument(
+        "--progress",
+        action="store_true",
+        help="Show progress while reading and counting data.",
+    )
 
     args = p.parse_args(argv)
 
@@ -189,9 +206,9 @@ def main():
     args = parse_args()
 
     # Initialize the writer (better to fail early..)
-    totals = SQLiteWriter(args.countme_totals, TotalsItem,
-                          timefield='weeknum',
-                          tablename='countme_totals')
+    totals = SQLiteWriter(
+        args.countme_totals, TotalsItem, timefield="weeknum", tablename="countme_totals"
+    )
     totals.write_header()
 
     # Are we doing an update?
@@ -210,7 +227,13 @@ def main():
             mon, sun = daterange(week)
             desc = f"week {week} ({mon} -- {sun})"
             total = rawdb.week_count(week)
-            prog = Progress(total=total, desc=desc, disable=True if not args.progress else None, unit="row", unit_scale=False)
+            prog = Progress(
+                total=total,
+                desc=desc,
+                disable=True if not args.progress else None,
+                unit="row",
+                unit_scale=False,
+            )
             hitcount = Counter()
 
             # Select raw items into their buckets and count 'em up
@@ -219,27 +242,28 @@ def main():
                 prog.update()
 
             # Write the resulting totals into countme_totals
-            totals.write_items((hits,)+bucket for bucket,hits in hitcount.items())
+            totals.write_items((hits,) + bucket for bucket, hits in hitcount.items())
             prog.close()
 
         # Oh and make sure we index them by time.
         totals.write_index()
 
-
     # Was a CSV dump requested?
     if args.csv_dump:
-        totalreader = SQLiteReader(args.countme_totals, TotalsItem,
-                                   timefield='weeknum',
-                                   tablename='countme_totals')
-        writer = CSVWriter(args.csv_dump, CSVCountItem,
-                           timefield='week_start')
+        totalreader = SQLiteReader(
+            args.countme_totals,
+            TotalsItem,
+            timefield="weeknum",
+            tablename="countme_totals",
+        )
+        writer = CSVWriter(args.csv_dump, CSVCountItem, timefield="week_start")
         writer.write_header()
         for item in totalreader:
             writer.write_item(CSVCountItem.from_totalitem(item))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        raise SystemExit(3) # You know, 3, like 'C', like Ctrl-C!
+        raise SystemExit(3)  # You know, 3, like 'C', like Ctrl-C!

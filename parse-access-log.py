@@ -34,43 +34,61 @@ from countme.progress import ReadProgress
 # ====== CLI parser & main() ================================================
 # ===========================================================================
 
+
 def parse_args(argv=None):
     p = argparse.ArgumentParser(
-        description = "Parse Fedora access.log files.",
+        description="Parse Fedora access.log files.",
     )
-    p.add_argument("-V", "--version", action='version',
-        version='%(prog)s 0.0.1')
+    p.add_argument("-V", "--version", action="version", version="%(prog)s 0.0.1")
 
-    p.add_argument("logs", metavar="LOG", nargs='+',
-        help="access_log file(s) to parse")
+    p.add_argument("logs", metavar="LOG", nargs="+", help="access_log file(s) to parse")
 
-    p.add_argument("--progress", action="store_true",
-        help="print some progress info while parsing")
+    p.add_argument("--progress", action="store_true", help="print some progress info while parsing")
 
-    p.add_argument("--matchmode",
+    p.add_argument(
+        "--matchmode",
         choices=("countme", "mirrors"),
         help="match 'countme' lines (default) or all mirrors",
-        default="countme")
+        default="countme",
+    )
 
     fmt = p.add_mutually_exclusive_group(required=True)
 
-    fmt.add_argument("--sqlite", metavar="DBFILE",
-        type=argparse.FileType('ab+'),
-        help="write to a sqlite database")
+    fmt.add_argument(
+        "--sqlite",
+        metavar="DBFILE",
+        type=argparse.FileType("ab+"),
+        help="write to a sqlite database",
+    )
 
-    fmt.add_argument("-f", "--format",
+    fmt.add_argument(
+        "-f",
+        "--format",
         choices=("csv", "json", "awk"),
-        help="write to stdout in text format")
+        help="write to stdout in text format",
+    )
 
-    p.add_argument("--no-header",
-        dest="header", default=True, action="store_false",
-        help="No header at the start of (csv,awk) output")
-    p.add_argument("--no-index",
-        dest="index", default=True, action="store_false",
-        help="Do not add an index to the sqlite database")
-    p.add_argument("--no-dup-check",
-        dest="dupcheck", default=True, action="store_false",
-        help="Skip check for already-parsed log data (sqlite)")
+    p.add_argument(
+        "--no-header",
+        dest="header",
+        default=True,
+        action="store_false",
+        help="No header at the start of (csv,awk) output",
+    )
+    p.add_argument(
+        "--no-index",
+        dest="index",
+        default=True,
+        action="store_false",
+        help="Do not add an index to the sqlite database",
+    )
+    p.add_argument(
+        "--no-dup-check",
+        dest="dupcheck",
+        default=True,
+        action="store_false",
+        help="Skip check for already-parsed log data (sqlite)",
+    )
 
     args = p.parse_args(argv)
 
@@ -92,6 +110,7 @@ def parse_args(argv=None):
 
     return args
 
+
 def main():
     args = parse_args()
 
@@ -109,14 +128,14 @@ def main():
         # Duplicate data check (for sqlite output)
         if args.dupcheck:
             try:
-                item = next(match_iter)             # grab first matching item
+                item = next(match_iter)  # grab first matching item
             except StopIteration:
                 # If there is no next match, keep going
                 continue
-            if args.writer.has_item(item):      # if it's already in the db...
-                continue                        #   skip to next log
-            else:                               # otherwise
-                args.writer.write_item(item)    #   insert it into the db
+            if args.writer.has_item(item):  # if it's already in the db...
+                continue  # skip to next log
+            else:  # otherwise
+                args.writer.write_item(item)  # insert it into the db
 
         # Write matching items (sqlite does commit at end, or rollback on error)
         args.writer.write_items(match_iter)
@@ -125,7 +144,7 @@ def main():
         args.writer.write_index()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:

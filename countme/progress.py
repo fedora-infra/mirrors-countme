@@ -19,51 +19,62 @@
 
 import os
 import sys
-from .regex import compile_log_regex, LOG_DATE_RE
+from .regex import LOG_DATE_RE
 
 __all__ = (
-    'ReadProgress', 'TQDMReadProgress', 'DIYReadProgress',
+    "ReadProgress",
+    "TQDMReadProgress",
+    "DIYReadProgress",
 )
 
 # ===========================================================================
 # ====== Progress meters & helpers ==========================================
 # ===========================================================================
 
+
 def log_date(line):
     match = LOG_DATE_RE.match(line)
     if match:
-        return match['date']
+        return match["date"]
     return "??/??/????"
+
 
 def log_reader(logfn):
     if logfn.endswith(".xz"):
         import lzma
-        return lzma.open(logfn, mode='rt')
+
+        return lzma.open(logfn, mode="rt")
     elif logfn.endswith(".gz"):
         import gzip
-        return gzip.open(logfn, mode='rt')
+
+        return gzip.open(logfn, mode="rt")
     else:
-        return open(logfn, mode='rt')
+        return open(logfn, mode="rt")
+
 
 def xz_log_size(xz_filename):
     import subprocess
+
     cmd = ["xz", "--list", "--robot", xz_filename]
     r = subprocess.run(cmd, stdout=subprocess.PIPE)
     if r.returncode != 0:
         return None
-    for line in r.stdout.split(b'\n'):
-        f = line.split(b'\t')
-        if f[0] == b'totals':
+    for line in r.stdout.split(b"\n"):
+        f = line.split(b"\t")
+        if f[0] == b"totals":
             return int(f[4])
+
 
 def gz_log_size(gz_filename):
     import subprocess
+
     cmd = ["gzip", "--quiet", "--list", gz_filename]
     r = subprocess.run(cmd, stdout=subprocess.PIPE)
     if r.returncode != 0:
         return None
     csize, uncsize, ratio, name = r.stdout.split()
     return int(uncsize)
+
 
 def log_total_size(logfn):
     if logfn.endswith(".xz"):
@@ -76,14 +87,14 @@ def log_total_size(logfn):
 
 class ReadProgressBase:
     def __init__(self, logs, display=True):
-        '''logs should be a sequence of line-iterable file-like objects.
-        if display is False, no progress output will be printed.'''
+        """logs should be a sequence of line-iterable file-like objects.
+        if display is False, no progress output will be printed."""
         self.logs = logs
         self.display = display
 
     def __iter__(self):
-        '''Iterator for ReadProgress; yields a sequence of line-iterable
-        file-like objects (one for each log in logs).'''
+        """Iterator for ReadProgress; yields a sequence of line-iterable
+        file-like objects (one for each log in logs)."""
         for num, logfn in enumerate(self.logs):
             logf = log_reader(logfn)
             total = log_total_size(logfn)
@@ -91,8 +102,12 @@ class ReadProgressBase:
 
     def _iter_log_lines(self, logf, num, total):
         # Make a progress meter for this file
-        prog = self._progress_obj(unit='b', unit_scale=True, total=total,
-                                  disable=True if not self.display else None)
+        prog = self._progress_obj(
+            unit="b",
+            unit_scale=True,
+            total=total,
+            disable=True if not self.display else None,
+        )
         # Get the first line manually so we can get logdate
         line = next(logf)
         desc = f"log {num+1}/{len(self.logs)}, date={log_date(line)}"
@@ -112,14 +127,24 @@ class TQDMReadProgress(ReadProgressBase):
     def _progress_obj(self, *args, **kwargs):
         return tqdm(*args, **kwargs)
 
+
 # No TQDM? Use our little do-it-yourself knockoff version.
 class DIYReadProgress(TQDMReadProgress):
     def _progress_obj(self, *args, **kwargs):
         return diyprog(*args, **kwargs)
 
+
 class diyprog:
-    def __init__(self, desc=None, total=None, file=None, disable=False,
-                 unit='b', unit_scale=True, barchar='_-=#'):
+    def __init__(
+        self,
+        desc=None,
+        total=None,
+        file=None,
+        disable=False,
+        unit="b",
+        unit_scale=True,
+        barchar="_-=#",
+    ):
         # COMPAT NOTE: tqdm objects with disable=True have no .desc attribute
         self.desc = desc
         self.total = total
@@ -137,7 +162,8 @@ class diyprog:
             self.display()
 
     def update(self, n=1):
-        if self.disable: return
+        if self.disable:
+            return
         self.count += n
         if self.count >= self.showat:
             self.showat = min(self.total, self.showat + self.total // 100)
@@ -150,7 +176,7 @@ class diyprog:
 
     @staticmethod
     def hrsize(n):
-        for suffix in 'kmgtp':
+        for suffix in "kmgtp":
             n /= 1000
             if n < 1000:
                 break
@@ -180,18 +206,24 @@ class diyprog:
         bar = (pct // 4) * self.barchar[-1]
         if pct < 100:
             bar += self.barchar[pct % 4]
-        print(f"{desc}: {pct:>3}% [{bar:<25}] {count:>7}/{total:<7}",
-              flush=True, file=self.file, end='\r')
+        print(
+            f"{desc}: {pct:>3}% [{bar:<25}] {count:>7}/{total:<7}",
+            flush=True,
+            file=self.file,
+            end="\r",
+        )
 
     def close(self):
-        if self.disable: return
+        if self.disable:
+            return
         print(flush=True, file=self.file)
+
 
 # Default ReadProgress: use tqdm if possible, else use the DIY one
 try:
     # TODO: make this work with a local tqdm checkout/git submodule
     from tqdm import tqdm
+
     ReadProgress = TQDMReadProgress
 except ImportError:
     ReadProgress = DIYReadProgress
-
