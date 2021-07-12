@@ -23,7 +23,6 @@ from .regex import LOG_DATE_RE
 
 __all__ = (
     "ReadProgress",
-    "TQDMReadProgress",
     "DIYReadProgress",
 )
 
@@ -122,14 +121,8 @@ class ReadProgressBase:
         prog.close()
 
 
-# Here's how we use the tqdm progress module to show read progress.
-class TQDMReadProgress(ReadProgressBase):
-    def _progress_obj(self, *args, **kwargs):
-        return tqdm(*args, **kwargs)
-
-
 # No TQDM? Use our little do-it-yourself knockoff version.
-class DIYReadProgress(TQDMReadProgress):
+class DIYReadProgress(ReadProgressBase):
     def _progress_obj(self, *args, **kwargs):
         return diyprog(*args, **kwargs)
 
@@ -219,11 +212,4 @@ class diyprog:
         print(flush=True, file=self.file)
 
 
-# Default ReadProgress: use tqdm if possible, else use the DIY one
-try:
-    # TODO: make this work with a local tqdm checkout/git submodule
-    from tqdm import tqdm
-
-    ReadProgress = TQDMReadProgress
-except ImportError:
-    ReadProgress = DIYReadProgress
+ReadProgress = DIYReadProgress

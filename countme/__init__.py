@@ -49,7 +49,7 @@ __all__ = (
 
 from datetime import datetime, timezone, timedelta
 from urllib.parse import parse_qsl
-from typing import NamedTuple, Optional
+from typing import NamedTuple, Optional, Type, Union
 
 from .regex import COUNTME_LOG_RE, MIRRORS_LOG_RE
 
@@ -194,7 +194,7 @@ class LogMatcher:
     """Base class for a LogMatcher, which iterates through a log file"""
 
     regex = NotImplemented
-    itemtuple = NotImplemented
+    itemtuple: Union[Type[MirrorItem], Type[CountmeItem]]
 
     def __init__(self, fileobj):
         self.fileobj = fileobj

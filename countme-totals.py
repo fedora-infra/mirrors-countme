@@ -52,12 +52,12 @@ def daterange(weeknum):
 
 
 class CountBucket(NamedTuple):
-    weeknum: int
+    weeknum: str  # this is a query
     os_name: str
     os_version: str
     os_variant: str
     os_arch: str
-    sys_age: int
+    sys_age: str  # this is a key
     repo_tag: str
     repo_arch: str
 
@@ -77,7 +77,23 @@ BucketSelect = CountBucket(
     repo_arch="repo_arch",
 )
 
-TotalsItem = NamedTuple("TotalsItem", [("hits", int)] + list(CountBucket.__annotations__.items()))
+
+class TotalsItem(NamedTuple):
+    hits: int
+    weeknum: str  # this is a query
+    os_name: str
+    os_version: str
+    os_variant: str
+    os_arch: str
+    sys_age: str  # this is a key
+    repo_tag: str
+    repo_arch: str
+
+    @classmethod
+    def from_item(cls, item):
+        return cls._make((weeknum(item.timestamp),) + item[2:])
+
+
 TotalsItem.__doc__ = """TotalsItem is CountBucket with a "hits" count on the front."""
 
 
