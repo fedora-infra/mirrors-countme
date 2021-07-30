@@ -141,7 +141,7 @@ def compile_log_regex(flags=0, ascii=True, query_present=None, **kwargs):
     If False, it only matches lines *without* a query string.
     If None (the default), the query string is optional.
     """
-    if ascii:
+    if ascii:  # pragma: no branch
         flags |= re.ASCII
 
     fields = LOG_PATTERN_FIELDS.copy()
