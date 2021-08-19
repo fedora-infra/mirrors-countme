@@ -22,6 +22,33 @@ def tmp_path_cwd(tmp_path):
     os.chdir(old_wd)
 
 
+def _test_tarfile_factory(tarfile_path):
+    """Wrap tarfile.open() context manager for fixtures
+
+    This attempts to open the tarfile and if successful, extracts its contents
+    to the current working directory and yields the Tarfile object. On
+    failure, it yields None.
+    """
+    try:
+        tarfp = tarfile.open(tarfile_path, "r:xz")
+    except FileNotFoundError:
+        yield None
+    else:
+        with tarfp:
+            tarfp.extractall()
+            yield tarfp
+
+
+@pytest.fixture
+def log_tar(tmp_path_cwd):
+    yield from _test_tarfile_factory(TEST_DATA_DIR / "mirrors.tar.xz")
+
+
+@pytest.fixture
+def db_tar(tmp_path_cwd):
+    yield from _test_tarfile_factory(TEST_DATA_DIR / "test_result_cmp.tar.xz")
+
+
 class Args(NamedTuple):
     writer: Any
     matcher: Any
@@ -35,7 +62,9 @@ class Args(NamedTuple):
     logs: List[str]
 
 
-def test_read_file(tmp_path_cwd):
+def test_read_file(tmp_path_cwd, log_tar, db_tar):
+    if not log_tar or not db_tar:
+        pytest.skip("Test data not found")
     matcher = CountmeMatcher
     args = Args(
         writer=make_writer("sqlite", str(tmp_path_cwd / "test_result.db"), matcher.itemtuple),
@@ -49,22 +78,14 @@ def test_read_file(tmp_path_cwd):
         sqlite=str(tmp_path_cwd / "test_result.db"),
         logs=[str(tmp_path_cwd / "mirrors.fedoraproject.org-access.log.processed")],
     )
-    with tarfile.open(TEST_DATA_DIR / "mirrors.tar.xz", "r:xz") as log_tar:
-        with tarfile.open(TEST_DATA_DIR / "test_result_cmp.tar.xz", "r:xz") as db_tar:
-            log_tar.extractall()
-            parse(args)
-            db_tar.extractall()
-            db = sqlite3.connect(args.sqlite)
-            tmp_db = tmp_path_cwd / "test_result_cmp.db"
-            db.execute(f"ATTACH DATABASE '{tmp_db}' AS test_db;")
-            rows_missing = db.execute(
-                "select * from test_db.countme_raw except select * from countme_raw;"
-            )
-            missing = rows_missing.fetchone()
-            rows_extra = db.execute(
-                "select * from countme_raw except select * from test_db.countme_raw;"
-            )
-            extra = rows_extra.fetchone()
-            assert (
-                missing is None and extra is None
-            ), f"When comparing db's\n {missing} was missing and\n {extra} was extra"
+    parse(args)
+    db = sqlite3.connect(args.sqlite)
+    tmp_db = tmp_path_cwd / "test_result_cmp.db"
+    db.execute(f"ATTACH DATABASE '{tmp_db}' AS test_db;")
+    rows_missing = db.execute("select * from test_db.countme_raw except select * from countme_raw;")
+    missing = rows_missing.fetchone()
+    rows_extra = db.execute("select * from countme_raw except select * from test_db.countme_raw;")
+    extra = rows_extra.fetchone()
+    assert (
+        missing is None and extra is None
+    ), f"When comparing db's\n {missing} was missing and\n {extra} was extra"
