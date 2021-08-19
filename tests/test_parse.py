@@ -76,8 +76,10 @@ def test_read_file(tmp_path_cwd, log_tar, db_tar):
         matchmode="countme",
         format="csv",
         sqlite=str(tmp_path_cwd / "test_result.db"),
-        logs=[str(tmp_path_cwd / str(i) / "mirrors.fedoraproject.org-access.log.processed")
-              for i in range(1, 32)],
+        logs=[
+            str(tmp_path_cwd / "mirrors" / str(i) / "mirrors.fedoraproject.org-access.log")
+            for i in range(1, 32)
+        ],
     )
     parse(args)
     db = sqlite3.connect(args.sqlite)
