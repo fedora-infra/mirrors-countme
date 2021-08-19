@@ -1,11 +1,25 @@
 import tarfile
 import os
 import sqlite3
+from pathlib import Path
 from typing import Any, List, NamedTuple
 
+import pytest
 
 from countme import CountmeMatcher, make_writer
 from countme.parse import parse
+
+
+HERE = Path(__file__).parent
+TEST_DATA_DIR = HERE.parent / "test_data"
+
+
+@pytest.fixture
+def tmp_path_cwd(tmp_path):
+    old_wd = os.getcwd()
+    os.chdir(tmp_path)
+    yield tmp_path
+    os.chdir(old_wd)
 
 
 class Args(NamedTuple):
@@ -21,10 +35,10 @@ class Args(NamedTuple):
     logs: List[str]
 
 
-def test_read_file(tmp_path):
+def test_read_file(tmp_path_cwd):
     matcher = CountmeMatcher
     args = Args(
-        writer=make_writer("sqlite", str(tmp_path / "test_result.db"), matcher.itemtuple),
+        writer=make_writer("sqlite", str(tmp_path_cwd / "test_result.db"), matcher.itemtuple),
         matcher=matcher,
         dupcheck=True,
         index=True,
@@ -32,18 +46,16 @@ def test_read_file(tmp_path):
         progress=False,
         matchmode="countme",
         format="csv",
-        sqlite=str(tmp_path / "test_result.db"),
-        logs=[str(tmp_path / "mirrors.fedoraproject.org-access.log.processed")],
+        sqlite=str(tmp_path_cwd / "test_result.db"),
+        logs=[str(tmp_path_cwd / "mirrors.fedoraproject.org-access.log.processed")],
     )
-    with tarfile.open("./test_data/mirrors.tar.xz", "r:xz") as log_tar:
-        with tarfile.open("./test_data/test_result_cmp.tar.xz", "r:xz") as db_tar:
-            os.chdir(tmp_path)
+    with tarfile.open(TEST_DATA_DIR / "mirrors.tar.xz", "r:xz") as log_tar:
+        with tarfile.open(TEST_DATA_DIR / "test_result_cmp.tar.xz", "r:xz") as db_tar:
             log_tar.extractall()
             parse(args)
             db_tar.extractall()
-            print(tmp_path)
             db = sqlite3.connect(args.sqlite)
-            tmp_db = tmp_path / "test_result_cmp.db"
+            tmp_db = tmp_path_cwd / "test_result_cmp.db"
             db.execute(f"ATTACH DATABASE '{tmp_db}' AS test_db;")
             rows_missing = db.execute(
                 "select * from test_db.countme_raw except select * from countme_raw;"
