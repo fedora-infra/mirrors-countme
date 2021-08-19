@@ -27,7 +27,9 @@ system arch, etc.}
 # This section defines the python3-mirrors-countme subpackage.
 %package -n python3-%{srcname}
 Summary: %{summary}
-BuildRequires: python3-devel python3-setuptools
+BuildRequires: python3-devel
+BuildRequires: python3-setuptools
+BuildRequires: python3-setuptools_scm
 #Recommends: python3-%%{srcname}+fancy_progress
 # NOTE: in F33+ %%python_extras_subpkg can be used to automatically generate
 # a 'python3-mirrors-countme+fancy_progress' subpackage that would pull in the
