@@ -1,5 +1,4 @@
 import tarfile
-import os
 import sqlite3
 from pathlib import Path
 from typing import Any, List, NamedTuple
@@ -12,14 +11,6 @@ from countme.parse import parse
 
 HERE = Path(__file__).parent
 TEST_DATA_DIR = HERE.parent / "test_data"
-
-
-@pytest.fixture
-def tmp_path_cwd(tmp_path):
-    old_wd = os.getcwd()
-    os.chdir(tmp_path)
-    yield tmp_path
-    os.chdir(old_wd)
 
 
 def _test_tarfile_factory(tarfile_path):
