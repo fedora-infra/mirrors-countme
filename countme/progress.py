@@ -19,6 +19,10 @@
 
 import os
 import sys
+from contextlib import contextmanager
+from pathlib import Path
+from typing import Iterator, Union
+
 from .regex import LOG_DATE_RE
 
 __all__ = (
@@ -84,20 +88,27 @@ def log_total_size(logfn):
         return os.stat(logfn).st_size
 
 
+@contextmanager
+def no_preprocess(filepath: Union[str, Path]) -> Iterator[str]:
+    yield str(filepath)
+
+
 class ReadProgressBase:
-    def __init__(self, logs, display=True):
+    def __init__(self, logs, display=True, pre_process=no_preprocess):
         """logs should be a sequence of line-iterable file-like objects.
         if display is False, no progress output will be printed."""
         self.logs = logs
         self.display = display
+        self.pre_process = pre_process
 
     def __iter__(self):
         """Iterator for ReadProgress; yields a sequence of line-iterable
         file-like objects (one for each log in logs)."""
         for num, logfn in enumerate(self.logs):
-            logf = log_reader(logfn)
-            total = log_total_size(logfn)
-            yield self._iter_log_lines(logf, num, total)
+            with self.pre_process(logfn) as processed_log:
+                logf = log_reader(processed_log)
+                total = log_total_size(processed_log)
+                yield self._iter_log_lines(logf, num, total)
 
     def _iter_log_lines(self, logf, num, total):
         # Make a progress meter for this file

@@ -1,11 +1,34 @@
+from contextlib import contextmanager
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+from typing import Iterator, Union
+
 from countme.progress import ReadProgress
+
+
+@contextmanager
+def pre_process(filepath: Union[str, Path]) -> Iterator[str]:
+    filepath = Path(filepath)
+    with NamedTemporaryFile(
+        prefix=f"mirrors-countme-{filepath.name}-",
+        suffix=".preprocessed",
+    ) as tmpfile:
+        import subprocess
+
+        print(f"Preprocessing file: {filepath}")
+        cmd = ["grep", "countme", str(filepath)]
+        r = subprocess.run(cmd, stdout=tmpfile)
+        if r.returncode != 0:
+            print(f"Preprocessing file failed, returning original: {filepath}")
+            yield str(filepath)
+        yield tmpfile.name
 
 
 def parse(args=None):
     if args.header or args.sqlite:
         args.writer.write_header()
 
-    for logf in ReadProgress(args.logs, display=args.progress):
+    for logf in ReadProgress(args.logs, display=args.progress, pre_process=pre_process):
         # Make an iterator object for the matching log lines
         match_iter = iter(args.matcher(logf))
 
