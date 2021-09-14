@@ -24,11 +24,11 @@ def pre_process(filepath: Union[str, Path]) -> Iterator[str]:
         yield tmpfile.name
 
 
-def parse(args=None):
+def parse_from_iterator(args, lines):
     if args.header or args.sqlite:
         args.writer.write_header()
 
-    for logf in ReadProgress(args.logs, display=args.progress, pre_process=pre_process):
+    for logf in lines:
         # Make an iterator object for the matching log lines
         match_iter = iter(args.matcher(logf))
 
@@ -53,3 +53,9 @@ def parse(args=None):
 
     if args.index:
         args.writer.write_index()
+
+
+def parse(args=None):
+    parse_from_iterator(
+        args, ReadProgress(args.logs, display=args.progress, pre_process=pre_process)
+    )
