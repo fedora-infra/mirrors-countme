@@ -162,7 +162,7 @@ class diyprog:
 
     def set_description(self, desc=None, refresh=True):
         self.desc = desc
-        if refresh:
+        if refresh and not self.disable:
             self.display()
 
     def update(self, n=1):
