@@ -11,7 +11,7 @@ import pytest
 
 from countme import CountmeMatcher, make_writer
 from countme.parse import parse, parse_from_iterator
-
+from countme.totals import totals
 
 HERE = Path(__file__).parent
 TEST_DATA_DIR = HERE.parent / "test_data"
@@ -55,6 +55,51 @@ class Args(NamedTuple):
     format: str
     sqlite: str
     logs: List[str]
+
+
+@pytest.fixture
+def raw_db_tar(tmp_path_cwd):
+    yield from _test_tarfile_factory(TEST_DATA_DIR / "test_result_cmp.tar.xz")
+
+
+@pytest.fixture
+def totals_db_tar(tmp_path_cwd):
+    yield from _test_tarfile_factory(TEST_DATA_DIR / "countme_totals.tar.xz")
+
+
+class ArgsTotal(NamedTuple):
+    countme_totals: Any
+    countme_raw: Any
+    progress: bool
+    csv_dump: Any
+    sqlite: str
+
+
+def test_count_totals(tmp_path_cwd, raw_db_tar, totals_db_tar):
+    if not raw_db_tar or not totals_db_tar:
+        pytest.skip("Test data not found")
+    args = ArgsTotal(
+        countme_totals=str(tmp_path_cwd / "test_result_totals.db"),
+        countme_raw=str(tmp_path_cwd / "test_result_cmp.db"),
+        progress=False,
+        csv_dump=False,
+        sqlite=str(tmp_path_cwd / "test_result_totals"),
+    )
+    totals(args)
+    db = sqlite3.connect(args.sqlite)
+    tmp_db = tmp_path_cwd / "countme_totals"
+    db.execute(f"ATTACH DATABASE '{tmp_db}' AS test_db;")
+    rows_missing = db.execute(
+        "select * from test_db.countme_totals except select * from countme_totals;"
+    )
+    missing = rows_missing.fetchone()
+    rows_extra = db.execute(
+        "select * from countme_totals except select * from test_db.countme_totals;"
+    )
+    extra = rows_extra.fetchone()
+    assert (
+        missing is None and extra is None
+    ), f"When comparing db's\n {missing} was missing and\n {extra} was extra"
 
 
 def test_read_file(tmp_path_cwd, log_tar, db_tar):
@@ -101,11 +146,11 @@ def log_data(draw):
     ip_sample = st.lists(st.ip_addresses(), 10, unique=True)
     repo = st.sampled_from(["Fedora", "epel-7", "centos8"])
     ips = draw(ip_sample)
-    # datetime.fromisoformat('2020-12-04')
-    dates = st.lists(st.datetimes(datetime.datetime(2021, 8, 8, 0)), 2, unique=True)
+    today = datetime.datetime.now()
+    dates = [today - datetime.timedelta(days=d, hours=i) for i in range(1, 2) for d in range(1, 14)]
 
     return list(
-        sorted(((date, ip, draw(repo)) for ip in ips for date in draw(dates)), key=lambda x: x[0])
+        sorted(((date, ip, draw(repo)) for ip in ips for date in dates), key=lambda x: x[0])
     )
 
 
@@ -130,3 +175,14 @@ def test_log(loglines):
         db = sqlite3.connect(args.sqlite)
         rows_no = db.execute("select count(*) from countme_raw;").fetchone()[0]
         assert rows_no == len(loglines)
+        args = ArgsTotal(
+            countme_totals=str(tmp_dir + "/test_generated_totals.db"),
+            countme_raw=str(tmp_dir + "/test.db"),
+            progress=False,
+            csv_dump=False,
+            sqlite=str(tmp_dir + "/test_generated_totals.db"),
+        )
+        totals(args)
+        db = sqlite3.connect(args.sqlite)
+        rows_no = db.execute("select count(*) from countme_totals;").fetchone()[0]
+        assert int(rows_no) > 0
