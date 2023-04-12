@@ -1,12 +1,12 @@
 ---
 - job:
-    name: tox-f33
+    name: tox-f38
     run: ci/tox.yaml
     nodeset:
       nodes:
         name: test-node
-        label: pod-python-f33
+        label: pod-python-f38
 - project:
     check:
       jobs:
-        - tox-f33
+        - tox-f38
