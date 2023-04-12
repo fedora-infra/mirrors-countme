@@ -55,7 +55,7 @@ from .regex import COUNTME_LOG_RE, MIRRORS_LOG_RE
 
 _orig_parse_qsl = parse_qsl
 def _parse_qsl(querystr):
-    _orig_parse_qsl(querystr, separator="&")
+    return _orig_parse_qsl(querystr, separator="&")
 parse_qsl = _parse_qsl
 
 # ===========================================================================
