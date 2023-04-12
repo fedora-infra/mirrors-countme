@@ -38,15 +38,13 @@ def parse_from_iterator(args, lines):
 
         # Duplicate data check (for sqlite output)
         if args.dupcheck:
-            try:
-                item = next(match_iter)  # grab first matching item
-            except StopIteration:
-                # If there is no next match, keep going
-                continue
-            if args.writer.has_item(item):  # if it's already in the db...
-                continue  # skip to next log
-            else:  # otherwise
-                args.writer.write_item(item)  # insert it into the db
+            for item in match_iter:
+              if args.writer.has_item(item):  # if it's already in the db...
+                  continue  # skip to next log
+
+              args.writer.write_item(item)  # insert it into the db
+            # There should be no items left, but to be safe...
+            continue
 
         # Write matching items (sqlite does commit at end, or rollback on error)
         args.writer.write_items(match_iter)
