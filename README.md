@@ -210,6 +210,7 @@ In practice, this is a three-part process:
 3. Publish updated `totals.db` and `totals.csv`
   * See https://data-analysis.fedoraproject.org/csv-reports/countme/
   * Might end up in different places/forms in the future
+  * Can also run countme-weekly-totals-ui.sh command to see text data easily.
 
 [^IPvBeefy]: Don't worry, 240.159.140.173 is a fake IP address. Actually,
              it's the 4-byte UTF-8 encoding for &#x1f32d;, U+1F32D HOT DOG.
