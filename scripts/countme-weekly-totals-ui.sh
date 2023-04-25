@@ -21,11 +21,11 @@ if [ "x$1" != "x" ]; then
 fi
 
 DAYS=$((7 * $WEEKS))
-DATE=$( date -d "last monday - ${DAYS} days" -I );
+DATE=$( date -d "last monday - ${DAYS} days" -I )
 
-ARCHES=('x86_64' 'aarch64' 'ppc64le' 's390x');
-RELEASES=('epel-8' 'epel-9');
-RELEASE3=('centos-baseos-9-stream');
+ARCHES=('x86_64' 'aarch64' 'ppc64le' 's390x')
+RELEASES=('epel-8' 'epel-9')
+RELEASE3=('centos-baseos-9-stream')
 FILE=/var/lib/countme/totals.csv 
 ## Countme minimum age
 AGE=2
