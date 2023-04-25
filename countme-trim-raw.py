@@ -97,30 +97,28 @@ def num2ui(num):
     return ret
 
 
-def get_trim_data(args):
-    data = {}
-    filename = args.sqlite
-    data['sql'] = sqlite3.connect(f"file:{filename}?mode=rwc", uri=True)
-    data['mintime'] = mintime(data['sql'])
-    data['week'] = next_week(data['mintime'])
+def get_trim_data(sqlite_filename):
+    connection = sqlite3.connect(f"file:{sqlite_filename}?mode=rwc", uri=True)
+    mintime = mintime(connection)
+    week = next_week(mintime)
 
-    print("First timestamp:", tm2ui(data['mintime']))
-    print("Next week      :", tm2ui(data['week']))
-    print("Entries        :", num2ui(_num_entries(data['sql'])))
-    print("Entries to trim:", num2ui(_num_entries_before(data['sql'], data['week'])))
+    print("First timestamp:", tm2ui(mintime))
+    print("Next week      :", tm2ui(week))
+    print("Entries        :", num2ui(_num_entries(connection)))
+    print("Entries to trim:", num2ui(_num_entries_before(connection, week)))
 
-    return data
+    return connection, week
 
-def trim_data(data):
+def trim_data(connection, week):
     print(" ** About to DELETE data. **")
     time.sleep(5)
-    _del_entries_before(data['sql'], data['week'])
+    _del_entries_before(connection, week)
 
 if __name__ == "__main__":
     try:
         args = parse_args()
-        data = get_trim_data(args)
+        connection, week = get_trim_data(args.sqlite)
         if args.rw:
-            trim_data(data)
+            trim_data(connection, week)
     except KeyboardInterrupt:
         raise SystemExit(3)  # sure, 3 is good, why not

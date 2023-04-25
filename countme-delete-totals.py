@@ -92,28 +92,26 @@ def num2ui(num):
     return ret
 
 
-def get_trim_data(args):
-    data = {}
-    filename = args.sqlite
-    data['sql'] = sqlite3.connect(f"file:{filename}?mode=rwc", uri=True)
-    data['week'] = last_week(data['sql'])
+def get_trim_data(sqlite_filename):
+    connection = sqlite3.connect(f"file:{sqlite_filename}?mode=rwc", uri=True)
+    week = last_week(connection)
 
-    print("Next week     :", data['week'], tm2ui(weeknum2tm(data['week'])))
-    print("Entries       :", num2ui(_num_entries(data['sql'])))
-    print("Entries to del:", num2ui(_num_entries_for(data['sql'], data['week'])))
+    print("Next week     :", week, tm2ui(weeknum2tm(week)))
+    print("Entries       :", num2ui(_num_entries(connection)))
+    print("Entries to del:", num2ui(_num_entries_for(connection, week)))
 
-    return data
+    return connection, week
 
-def trim_data(data):
+def trim_data(connection, week):
     print(" ** About to DELETE data. **")
     time.sleep(5)
-    _del_entries_for(data['sql'], data['week'])
+    _del_entries_for(connection, week)
 
 if __name__ == "__main__":
     try:
         args = parse_args()
-        data = get_trim_data(args)
+        connection, week = get_trim_data(args.sqlite)
         if args.rw:
-            trim_data(data)
+            trim_data(connection, week)
     except KeyboardInterrupt:
         raise SystemExit(3)  # sure, 3 is good, why not
