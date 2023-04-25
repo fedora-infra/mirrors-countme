@@ -58,9 +58,9 @@ def parse_args(argv=None):
 
     return args
 
-def last_week(cur):
-    cur = cur.execute("SELECT MAX(weeknum) FROM countme_totals")
-    return cur.fetchone()[0]
+def last_week(connection):
+    connection = cur.execute("SELECT MAX(weeknum) FROM countme_totals")
+    return connection.fetchone()[0]
 
 def _num_entries_for(cur, weeknum):
     cur = cur.execute("SELECT COUNT(*) FROM countme_totals WHERE weeknum = ?", (weeknum,))
