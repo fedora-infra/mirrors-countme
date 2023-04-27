@@ -21,14 +21,15 @@
 # The main point of this script is to remove the last weeknum of data from
 # totals.db. If you then run it again it'll remove the next week.
 
-import sys
-import time
 import argparse
-
+import locale
 import sqlite3
+import time
 
 import mirrors_countme
 import mirrors_countme.totals
+
+locale.setlocale(locale.LC_ALL, "")
 
 # ===========================================================================
 # ====== CLI parser & main() ================================================
@@ -58,37 +59,42 @@ def parse_args(argv=None):
 
     return args
 
+
 def last_week(connection):
     cursor = connection.execute("SELECT MAX(weeknum) FROM countme_totals")
     return cursor.fetchone()[0]
+
 
 def _num_entries_for(connection, weeknum):
     cursor = connection.execute("SELECT COUNT(*) FROM countme_totals WHERE weeknum = ?", (weeknum,))
     return cursor.fetchone()[0]
 
+
 def _num_entries(connection):
     cursor = connection.execute("SELECT COUNT(*) FROM countme_totals")
     return cursor.fetchone()[0]
+
 
 def _del_entries_for(connection, weeknum):
     connection.execute("DELETE FROM countme_totals WHERE weeknum = ?", (weeknum,))
     connection.commit()
 
+
 def tm2ui(timestamp):
     tm = time.gmtime(timestamp)
     return time.strftime("%Y-%m-%d %H:%M:%S", tm)
+
 
 def weeknum2tm(weeknum):
     ret = mirrors_countme.COUNTME_EPOCH
     return ret + int(weeknum) * mirrors_countme.WEEK_LEN
 
-import locale
-locale.setlocale(locale.LC_ALL, '')
+
 def num2ui(num):
-    ret = locale.format_string('%d', num, grouping=True)
+    ret = locale.format_string("%d", num, grouping=True)
     mlen = len("100,000,000")
     if len(ret) < mlen:
-        ret = " " * (mlen-len(ret)) + ret
+        ret = " " * (mlen - len(ret)) + ret
     return ret
 
 
@@ -102,10 +108,12 @@ def get_trim_data(sqlite_filename):
 
     return connection, week
 
+
 def trim_data(connection, week):
     print(" ** About to DELETE data. **")
     time.sleep(5)
     _del_entries_for(connection, week)
+
 
 if __name__ == "__main__":
     try:

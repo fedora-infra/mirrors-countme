@@ -1,9 +1,9 @@
 import datetime
 from collections import Counter
 from typing import NamedTuple
-from . import CountmeItem, weeknum, SQLiteWriter, SQLiteReader, CSVWriter
-from .progress import diyprog as Progress
 
+from . import CountmeItem, CSVWriter, SQLiteReader, SQLiteWriter, weeknum
+from .progress import diyprog as Progress
 
 # NOTE: log timestamps do not move monotonically forward, but they don't
 # seem to ever jump backwards more than 241 seconds. I assume this is
@@ -194,7 +194,6 @@ def totals(args):
 
         # Count week by week
         for week in new_weeks:
-
             # Set up a progress meter and counter
             mon, sun = daterange(week)
             desc = f"week {week} ({mon} -- {sun})"

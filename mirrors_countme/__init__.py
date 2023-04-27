@@ -47,15 +47,19 @@ __all__ = (
     "CountmeMatcher",
 )
 
-from datetime import datetime, timezone, timedelta
-from urllib.parse import parse_qsl
+from datetime import datetime, timedelta, timezone
 from typing import NamedTuple, Optional, Type, Union
+from urllib.parse import parse_qsl
 
 from .regex import COUNTME_LOG_RE, MIRRORS_LOG_RE
 
 _orig_parse_qsl = parse_qsl
+
+
 def _parse_qsl(querystr):
     return _orig_parse_qsl(querystr, separator="&")
+
+
 parse_qsl = _parse_qsl
 
 # ===========================================================================

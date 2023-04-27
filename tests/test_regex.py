@@ -1,7 +1,12 @@
 import pytest
 
-from mirrors_countme.regex import COUNTME_LOG_RE, COUNTME_USER_AGENT_RE, LOG_DATE_RE, LOG_RE, MIRRORS_LOG_RE
-
+from mirrors_countme.regex import (
+    COUNTME_LOG_RE,
+    COUNTME_USER_AGENT_RE,
+    LOG_DATE_RE,
+    LOG_RE,
+    MIRRORS_LOG_RE,
+)
 
 COUNTME_LOG_RE_INPUTS_RESULTS = [
     (
