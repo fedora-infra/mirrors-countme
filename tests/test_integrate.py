@@ -1,13 +1,13 @@
 import datetime
+import sqlite3
 import tarfile
 import tempfile
-import sqlite3
-from hypothesis import given, strategies as st
-from hypothesis import settings, HealthCheck
 from pathlib import Path
 from typing import Any, List, NamedTuple
 
 import pytest
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 
 from mirrors_countme import CountmeMatcher, make_writer
 from mirrors_countme.parse import parse, parse_from_iterator

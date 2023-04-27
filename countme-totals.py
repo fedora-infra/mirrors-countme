@@ -1,8 +1,8 @@
 #!/usr/bin/python3
 
 import argparse
-from mirrors_countme.totals import totals
 
+from mirrors_countme.totals import totals
 
 # ===========================================================================
 # ====== CLI parser & __main__ ==============================================

@@ -23,8 +23,8 @@
 # into this; tools further down the pipeline can be responsible for figuring
 # out how to group "updates-released-f32" and "fedora-modular-source-32".
 
-import sys
 import argparse
+import sys
 
 from mirrors_countme import CountmeMatcher, MirrorMatcher, make_writer
 from mirrors_countme.parse import parse

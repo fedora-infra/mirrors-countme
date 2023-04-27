@@ -3,7 +3,6 @@ from pathlib import Path
 
 import pytest
 
-
 if [int(x) for x in pytest.__version__.split(".")] < [3, 9, 0]:
     # the tmp_path fixture is only available in pytest >= 3.9.0
     @pytest.fixture

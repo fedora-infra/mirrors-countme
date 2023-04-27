@@ -22,13 +22,14 @@
 # upto the next week start. If you then run it again it'll remove the next week.
 # Uses mindate() but then runs direct SQL.
 
-import sys
-import time
 import argparse
-
+import locale
 import sqlite3
+import time
 
 import mirrors_countme
+
+locale.setlocale(locale.LC_ALL, "")
 
 # ===========================================================================
 # ====== CLI parser & main() ================================================
@@ -58,10 +59,12 @@ def parse_args(argv=None):
 
     return args
 
+
 # Mostly borrowed from mirrors_countme/__init__
 def get_mintime(connection):
     cursor = connection.execute("SELECT MIN(timestamp) FROM countme_raw")
     return cursor.fetchone()[0]
+
 
 # Find the next week to trim, given the earliest timestamp.
 def next_week(mintime):
@@ -71,29 +74,34 @@ def next_week(mintime):
     # Now begin is the first week _after_ the mintime.
     return begin
 
+
 def _num_entries_before(connection, timestamp):
-    cursor = connection.execute("SELECT COUNT(*) FROM countme_raw WHERE timestamp < ?", (timestamp,))
+    cursor = connection.execute(
+        "SELECT COUNT(*) FROM countme_raw WHERE timestamp < ?", (timestamp,)
+    )
     return cursor.fetchone()[0]
+
 
 def _num_entries(connection):
     cursor = connection.execute("SELECT COUNT(*) FROM countme_raw")
     return cursor.fetchone()[0]
 
+
 def _del_entries_before(connection, timestamp):
     connection.execute("DELETE FROM countme_raw WHERE timestamp < ?", (timestamp,))
     connection.commit()
+
 
 def tm2ui(timestamp):
     tm = time.gmtime(timestamp)
     return time.strftime("%Y-%m-%d %H:%M:%S", tm)
 
-import locale
-locale.setlocale(locale.LC_ALL, '')
+
 def num2ui(num):
-    ret = locale.format_string('%d', num, grouping=True)
+    ret = locale.format_string("%d", num, grouping=True)
     mlen = len("100,000,000")
     if len(ret) < mlen:
-        ret = " " * (mlen-len(ret)) + ret
+        ret = " " * (mlen - len(ret)) + ret
     return ret
 
 
@@ -109,10 +117,12 @@ def get_trim_data(sqlite_filename):
 
     return connection, week
 
+
 def trim_data(connection, week):
     print(" ** About to DELETE data. **")
     time.sleep(5)
     _del_entries_before(connection, week)
+
 
 if __name__ == "__main__":
     try:
