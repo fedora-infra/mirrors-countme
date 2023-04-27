@@ -28,7 +28,7 @@ import argparse
 
 import sqlite3
 
-import countme
+import mirrors_countme
 
 # ===========================================================================
 # ====== CLI parser & main() ================================================
@@ -58,16 +58,16 @@ def parse_args(argv=None):
 
     return args
 
-# Mostly borrowed from countme/__init__
+# Mostly borrowed from mirrors_countme/__init__
 def mintime(cur):
     cur = cur.execute("SELECT MIN(timestamp) FROM countme_raw")
     return cur.fetchone()[0]
 
 # Find the next week to trim, given the earliest timestamp.
 def next_week(mintime):
-    beg = countme.COUNTME_EPOCH
+    beg = mirrors_countme.COUNTME_EPOCH
     while beg <= mintime:
-        beg += countme.WEEK_LEN
+        beg += mirrors_countme.WEEK_LEN
     # Now beg is the first week _after_ the mintime.
     return beg
 

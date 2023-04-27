@@ -27,8 +27,8 @@ import argparse
 
 import sqlite3
 
-import countme
-import countme.totals
+import mirrors_countme
+import mirrors_countme.totals
 
 # ===========================================================================
 # ====== CLI parser & main() ================================================
@@ -79,8 +79,8 @@ def tm2ui(timestamp):
     return time.strftime("%Y-%m-%d %H:%M:%S", tm)
 
 def weeknum2tm(weeknum):
-    ret = countme.COUNTME_EPOCH
-    return ret + int(weeknum)*countme.WEEK_LEN
+    ret = mirrors_countme.COUNTME_EPOCH
+    return ret + int(weeknum) * mirrors_countme.WEEK_LEN
 
 import locale
 locale.setlocale(locale.LC_ALL, '')
