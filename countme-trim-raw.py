@@ -59,7 +59,7 @@ def parse_args(argv=None):
     return args
 
 # Mostly borrowed from mirrors_countme/__init__
-def mintime(connection):
+def get_mintime(connection):
     cursor = connection.execute("SELECT MIN(timestamp) FROM countme_raw")
     return cursor.fetchone()[0]
 
@@ -99,7 +99,7 @@ def num2ui(num):
 
 def get_trim_data(sqlite_filename):
     connection = sqlite3.connect(f"file:{sqlite_filename}?mode=rwc", uri=True)
-    mintime = mintime(connection)
+    mintime = get_mintime(connection)
     week = next_week(mintime)
 
     print("First timestamp:", tm2ui(mintime))
