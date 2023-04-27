@@ -355,8 +355,8 @@ class SQLiteWriter(ItemWriter):
             filename = self._fp.name
         else:
             filename = self._fp
-        self._con = sqlite3.connect(f"file:{filename}?mode=rwc", uri=True)
-        self._cur = self._con.cursor()
+        self._connection = sqlite3.connect(f"file:{filename}?mode=rwc", uri=True)
+        self._cursor = self._connection.cursor()
         self._tablename = tablename
         self._filename = filename
         # Generate SQL commands so we can use them later.
@@ -381,32 +381,34 @@ class SQLiteWriter(ItemWriter):
         )
 
     def write_header(self):
-        self._cur.execute(self._create_table)
+        self._cursor.execute(self._create_table)
 
     def write_item(self, item):
-        self._cur.execute(self._insert_item, item)
+        self._cursor.execute(self._insert_item, item)
 
     def write_items(self, items):
-        with self._con:
-            self._con.executemany(self._insert_item, items)
+        with self._connection:
+            self._connection.executemany(self._insert_item, items)
 
     def write_index(self):
-        self._cur.execute(self._create_time_index)
-        self._con.commit()
+        self._cursor.execute(self._create_time_index)
+        self._connection.commit()
 
     def has_item(self, item):
         """Return True if a row matching `item` exists in this database."""
         condition = " AND ".join(f"{field}=?" for field in self._fields)
-        cur = self._cur.execute(f"SELECT COUNT(*) FROM {self._tablename} WHERE {condition}", item)
-        return bool(cur.fetchone()[0])
+        cursor = self._cursor.execute(
+            f"SELECT COUNT(*) FROM {self._tablename} WHERE {condition}", item
+        )
+        return bool(cursor.fetchone()[0])
 
     def mintime(self):
-        cur = self._cur.execute(f"SELECT MIN({self._timefield}) FROM {self._tablename}")
-        return cur.fetchone()[0]
+        cursor = self._cursor.execute(f"SELECT MIN({self._timefield}) FROM {self._tablename}")
+        return cursor.fetchone()[0]
 
     def maxtime(self):
-        cur = self._cur.execute(f"SELECT MAX({self._timefield}) FROM {self._tablename}")
-        return cur.fetchone()[0]
+        cursor = self._cursor.execute(f"SELECT MAX({self._timefield}) FROM {self._tablename}")
+        return cursor.fetchone()[0]
 
 
 def make_writer(name, *args, **kwargs):
@@ -521,34 +523,34 @@ class SQLiteReader(ItemReader):
             filename = self._fp.name
         else:
             filename = self._fp
-        # self._con = sqlite3.connect(f"file:{filename}?mode=ro", uri=True)
-        self._con = sqlite3.connect(filename)
-        self._cur = self._con.cursor()
+        # self._connection = sqlite3.connect(f"file:{filename}?mode=ro", uri=True)
+        self._connection = sqlite3.connect(filename)
+        self._cursor = self._connection.cursor()
         self._tablename = tablename
         self._timefield = timefield
         self._filename = filename
 
     def _get_fields(self):
         fields_sql = f"PRAGMA table_info('{self._tablename}')"
-        filefields = tuple(r[1] for r in self._cur.execute(fields_sql))
+        filefields = tuple(r[1] for r in self._cursor.execute(fields_sql))
         return filefields
 
     def _find_item(self, item):
         condition = " AND ".join(f"{field}=?" for field in self.fields)
-        self._cur.execute(f"SELECT COUNT(*) FROM {self._tablename} WHERE {condition}", item)
-        return bool(self._cur.fetchone()[0])
+        self._cursor.execute(f"SELECT COUNT(*) FROM {self._tablename} WHERE {condition}", item)
+        return bool(self._cursor.fetchone()[0])
 
     def _iter_rows(self):
         fields = ",".join(self._itemfields)
-        return self._cur.execute(f"SELECT {fields} FROM {self._tablename}")
+        return self._cursor.execute(f"SELECT {fields} FROM {self._tablename}")
 
     def mintime(self):
-        cur = self._cur.execute(f"SELECT MIN({self._timefield}) FROM {self._tablename}")
-        return cur.fetchone()[0]
+        cursor = self._cursor.execute(f"SELECT MIN({self._timefield}) FROM {self._tablename}")
+        return cursor.fetchone()[0]
 
     def maxtime(self):
-        cur = self._cur.execute(f"SELECT MAX({self._timefield}) FROM {self._tablename}")
-        return cur.fetchone()[0]
+        cursor = self._cursor.execute(f"SELECT MAX({self._timefield}) FROM {self._tablename}")
+        return cursor.fetchone()[0]
 
 
 # Guess the right reader based on the filename.

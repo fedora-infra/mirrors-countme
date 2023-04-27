@@ -59,20 +59,20 @@ def parse_args(argv=None):
     return args
 
 def last_week(connection):
-    connection = cur.execute("SELECT MAX(weeknum) FROM countme_totals")
-    return connection.fetchone()[0]
+    cursor = connection.execute("SELECT MAX(weeknum) FROM countme_totals")
+    return cursor.fetchone()[0]
 
-def _num_entries_for(cur, weeknum):
-    cur = cur.execute("SELECT COUNT(*) FROM countme_totals WHERE weeknum = ?", (weeknum,))
-    return cur.fetchone()[0]
+def _num_entries_for(connection, weeknum):
+    cursor = connection.execute("SELECT COUNT(*) FROM countme_totals WHERE weeknum = ?", (weeknum,))
+    return cursor.fetchone()[0]
 
-def _num_entries(cur):
-    cur = cur.execute("SELECT COUNT(*) FROM countme_totals")
-    return cur.fetchone()[0]
+def _num_entries(connection):
+    cursor = connection.execute("SELECT COUNT(*) FROM countme_totals")
+    return cursor.fetchone()[0]
 
-def _del_entries_for(con, weeknum):
-    con.execute("DELETE FROM countme_totals WHERE weeknum = ?", (weeknum,))
-    con.commit()
+def _del_entries_for(connection, weeknum):
+    connection.execute("DELETE FROM countme_totals WHERE weeknum = ?", (weeknum,))
+    connection.commit()
 
 def tm2ui(timestamp):
     tm = time.gmtime(timestamp)

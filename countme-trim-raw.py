@@ -59,29 +59,29 @@ def parse_args(argv=None):
     return args
 
 # Mostly borrowed from mirrors_countme/__init__
-def mintime(cur):
-    cur = cur.execute("SELECT MIN(timestamp) FROM countme_raw")
-    return cur.fetchone()[0]
+def mintime(connection):
+    cursor = connection.execute("SELECT MIN(timestamp) FROM countme_raw")
+    return cursor.fetchone()[0]
 
 # Find the next week to trim, given the earliest timestamp.
 def next_week(mintime):
-    beg = mirrors_countme.COUNTME_EPOCH
-    while beg <= mintime:
-        beg += mirrors_countme.WEEK_LEN
-    # Now beg is the first week _after_ the mintime.
-    return beg
+    begin = mirrors_countme.COUNTME_EPOCH
+    while begin <= mintime:
+        begin += mirrors_countme.WEEK_LEN
+    # Now begin is the first week _after_ the mintime.
+    return begin
 
-def _num_entries_before(cur, timestamp):
-    cur = cur.execute("SELECT COUNT(*) FROM countme_raw WHERE timestamp < ?", (timestamp,))
-    return cur.fetchone()[0]
+def _num_entries_before(connection, timestamp):
+    cursor = connection.execute("SELECT COUNT(*) FROM countme_raw WHERE timestamp < ?", (timestamp,))
+    return cursor.fetchone()[0]
 
-def _num_entries(cur):
-    cur = cur.execute("SELECT COUNT(*) FROM countme_raw")
-    return cur.fetchone()[0]
+def _num_entries(connection):
+    cursor = connection.execute("SELECT COUNT(*) FROM countme_raw")
+    return cursor.fetchone()[0]
 
-def _del_entries_before(con, timestamp):
-    con.execute("DELETE FROM countme_raw WHERE timestamp < ?", (timestamp,))
-    con.commit()
+def _del_entries_before(connection, timestamp):
+    connection.execute("DELETE FROM countme_raw WHERE timestamp < ?", (timestamp,))
+    connection.commit()
 
 def tm2ui(timestamp):
     tm = time.gmtime(timestamp)
