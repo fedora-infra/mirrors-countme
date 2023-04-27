@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # countme-delete-totals.py - Delete the last week from the totals.db file.
 #
-# Copyright Red Hat Inc.
+# Copyright Red Hat
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
