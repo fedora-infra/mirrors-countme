@@ -402,10 +402,12 @@ class SQLiteWriter(ItemWriter):
         )
         return bool(cursor.fetchone()[0])
 
+    @property
     def mintime(self):
         cursor = self._cursor.execute(f"SELECT MIN({self._timefield}) FROM {self._tablename}")
         return cursor.fetchone()[0]
 
+    @property
     def maxtime(self):
         cursor = self._cursor.execute(f"SELECT MAX({self._timefield}) FROM {self._tablename}")
         return cursor.fetchone()[0]
@@ -544,10 +546,12 @@ class SQLiteReader(ItemReader):
         fields = ",".join(self._itemfields)
         return self._cursor.execute(f"SELECT {fields} FROM {self._tablename}")
 
+    @property
     def mintime(self):
         cursor = self._cursor.execute(f"SELECT MIN({self._timefield}) FROM {self._tablename}")
         return cursor.fetchone()[0]
 
+    @property
     def maxtime(self):
         cursor = self._cursor.execute(f"SELECT MAX({self._timefield}) FROM {self._tablename}")
         return cursor.fetchone()[0]

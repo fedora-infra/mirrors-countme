@@ -143,11 +143,11 @@ class RawDB(SQLiteReader):
         data for `provweek`, but since it's provisional/incomplete it's
         outside the range."""
         # startweek can't be earlier than the first week of data
-        startweek = max(weeknum(self.mintime()), COUNTME_START_WEEKNUM)
+        startweek = max(weeknum(self.mintime), COUNTME_START_WEEKNUM)
         # A week is provisional until the LOG_JITTER_WINDOW expires, so once
         # tsmax minus LOG_JITTER_WINDOW ticks over into a new weeknum, that
         # weeknum is the provisional one. So...
-        provweek = weeknum(self.maxtime() - LOG_JITTER_WINDOW)
+        provweek = weeknum(self.maxtime - LOG_JITTER_WINDOW)
         return range(startweek, provweek)
 
     def week_count(self, weeknum):
@@ -189,7 +189,7 @@ def totals(args):
 
         # Check to see if there's any new weeks to get data for
         complete_weeks = sorted(rawdb.complete_weeks())
-        newest_totals = totals.maxtime() or -1
+        newest_totals = totals.maxtime or -1
         new_weeks = [w for w in complete_weeks if w > int(newest_totals)]
 
         # Count week by week
