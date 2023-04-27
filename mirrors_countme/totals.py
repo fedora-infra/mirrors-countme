@@ -132,8 +132,10 @@ class RawDB(SQLiteReader):
         super().__init__(fp, CountmeItem, tablename="countme_raw", **kwargs)
 
     def _minmax(self, column):
-        cur = self._con.execute(f"SELECT min({column}),max({column}) FROM {self._tablename}")
-        return cur.fetchone()
+        cursor = self._connection.execute(
+            f"SELECT min({column}),max({column}) FROM {self._tablename}"
+        )
+        return cursor.fetchone()
 
     def complete_weeks(self):
         """Return a range(startweek, provweek) that covers (valid + complete)
@@ -151,12 +153,12 @@ class RawDB(SQLiteReader):
     def week_count(self, weeknum):
         start_ts = weeknum * WEEK_LEN + COUNTME_EPOCH
         end_ts = start_ts + WEEK_LEN
-        cur = self._con.execute(
+        cursor = self._connection.execute(
             f"SELECT COUNT(*)"
             f" FROM {self._tablename}"
             f" WHERE timestamp >= {start_ts} AND timestamp < {end_ts}"
         )
-        return cur.fetchone()[0]
+        return cursor.fetchone()[0]
 
     def week_iter(self, weeknum, select="*"):
         if isinstance(select, (tuple, list)):
@@ -167,7 +169,7 @@ class RawDB(SQLiteReader):
             raise ValueError(f"select should be a string or tuple, not {select.__class__.__name__}")
         start_ts = weeknum * WEEK_LEN + COUNTME_EPOCH
         end_ts = start_ts + WEEK_LEN
-        return self._con.execute(
+        return self._connection.execute(
             f"SELECT {item_select}"
             f" FROM {self._tablename}"
             f" WHERE timestamp >= {start_ts} AND timestamp < {end_ts}"
