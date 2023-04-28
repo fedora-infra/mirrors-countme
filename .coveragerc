@@ -1,7 +1,7 @@
 [run]
 branch = True
-source = countme
-omit = countme/version.py
+source = mirrors_countme
+omit = mirrors_countme/version.py
 
 [report]
 precision = 2

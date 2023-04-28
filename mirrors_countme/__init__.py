@@ -1,4 +1,4 @@
-# countme - parsing Fedora httpd access_log files to structured data.
+# mirrors_countme - parsing Fedora httpd access_log files to structured data.
 #
 # Copyright (C) 2020, Red Hat Inc.
 #

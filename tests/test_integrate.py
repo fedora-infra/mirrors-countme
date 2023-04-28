@@ -9,9 +9,9 @@ from typing import Any, List, NamedTuple
 
 import pytest
 
-from countme import CountmeMatcher, make_writer
-from countme.parse import parse, parse_from_iterator
-from countme.totals import totals
+from mirrors_countme import CountmeMatcher, make_writer
+from mirrors_countme.parse import parse, parse_from_iterator
+from mirrors_countme.totals import totals
 
 HERE = Path(__file__).parent
 TEST_DATA_DIR = HERE.parent / "test_data"
