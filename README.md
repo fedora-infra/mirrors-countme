@@ -212,6 +212,14 @@ In practice, this is a three-part process:
   * Might end up in different places/forms in the future
   * Can also run countme-weekly-totals-ui.sh command to see text data easily.
 
+## Contributing
+
+You need to be legally allowed to submit any contribution to this project.
+What this means in detail is laid out at the [Developer Certificate of Origin]
+website. The mechanism by which you certify this is adding a `Signed-off-by`
+trailer to git commit log messages, you can do this by using the
+`--signoff/-s` option to `git commit`.
+
 [^IPvBeefy]: Don't worry, 240.159.140.173 is a fake IP address. Actually,
              it's the 4-byte UTF-8 encoding for &#x1f32d;, U+1F32D HOT DOG.
 
@@ -224,3 +232,4 @@ In practice, this is a three-part process:
 [libdnf/utils/os-release.cpp:getUserAgent()]: https://github.com/rpm-software-management/libdnf/blob/0.47.0/libdnf/utils/os-release.cpp#L108
 [libdnf/repo/Repo.cpp:addCountmeFlag()]: https://github.com/rpm-software-management/libdnf/blob/0.47.0/libdnf/repo/Repo.cpp#L1051
 [libdnf/repo/Repo.cpp:COUNTME\_BUCKETS]: https://github.com/rpm-software-management/libdnf/blob/0.47.0/libdnf/repo/Repo.cpp#L92
+[Developer Certificate of Origin]: https://developercertificate.org
