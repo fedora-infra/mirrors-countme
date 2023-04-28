@@ -1,8 +1,8 @@
 import datetime
-from countme.progress import diyprog as Progress
 from collections import Counter
 from typing import NamedTuple
-from countme import CountmeItem, weeknum, SQLiteWriter, SQLiteReader, CSVWriter
+from . import CountmeItem, weeknum, SQLiteWriter, SQLiteReader, CSVWriter
+from .progress import diyprog as Progress
 
 
 # NOTE: log timestamps do not move monotonically forward, but they don't

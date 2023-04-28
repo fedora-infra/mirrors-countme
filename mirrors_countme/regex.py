@@ -1,4 +1,4 @@
-# countme.regex - regexes for log matching and parsing
+# mirrors_countme.regex - regexes for log matching and parsing
 #
 # Copyright (C) 2020, Red Hat Inc.
 #

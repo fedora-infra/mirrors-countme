@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 import argparse
-from countme.totals import totals
+from mirrors_countme.totals import totals
 
 
 # ===========================================================================

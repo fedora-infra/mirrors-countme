@@ -1,4 +1,38 @@
+[tool.poetry]
+name = "mirrors-countme"
+version = "0.0.8"
+description = "Parse access logs and count hosts for DNF mirrors"
+authors = [
+    "Will Woods",
+    "Stephen Smoogen <smooge@smoogespace.com>",
+    "Adam Saleh <asaleh@redhat.com>",
+    "Patrik Polakovič <patrik@alphamail.org>",
+    "Nils Philippsen <nils@redhat.com>",
+    "James Antill <james@and.org>",
+]
+license = "GPL-3.0-or-later"
+readme = "README.md"
+packages = [{include = "mirrors_countme"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+poetry = "^1.4.2"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.3.1"
+pytest-cov = "^4.0.0"
+flake8 = "^6.0.0"
+black = "^23.3.0"
+mypy = "^1.2.0"
+hypothesis = "^6.72.4"
+
 [build-system]
-    requires = ["setuptools", "setuptools-scm", "wheel"]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+addopts = "--cov-config .coveragerc --cov=mirrors_countme --cov-report term --cov-report xml --cov-report html"
+
 [tool.black]
-    line_length = 100
+line_length = 100
+

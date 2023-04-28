@@ -26,8 +26,8 @@
 import sys
 import argparse
 
-from countme import CountmeMatcher, MirrorMatcher, make_writer
-from countme.parse import parse
+from mirrors_countme import CountmeMatcher, MirrorMatcher, make_writer
+from mirrors_countme.parse import parse
 
 # ===========================================================================
 # ====== CLI parser & main() ================================================

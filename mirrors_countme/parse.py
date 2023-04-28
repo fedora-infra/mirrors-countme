@@ -3,7 +3,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Iterator, Union
 
-from countme.progress import ReadProgress
+from .progress import ReadProgress
 
 
 @contextmanager

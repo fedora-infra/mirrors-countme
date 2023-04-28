@@ -1,6 +1,0 @@
-flake8
-black
-mypy
-pytest
-pytest-cov
-hypothesis==5.43.9

@@ -1,4 +1,4 @@
-# countme.progress: progress meters for CLI output
+# mirrors_countme.progress: progress meters for CLI output
 #
 # Copyright (C) 2020, Red Hat Inc.
 #
