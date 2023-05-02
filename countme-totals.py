@@ -3,6 +3,7 @@
 import argparse
 
 from mirrors_countme.totals import totals
+from mirrors_countme.version import __version__
 
 # ===========================================================================
 # ====== CLI parser & __main__ ==============================================
@@ -13,7 +14,7 @@ def parse_args(argv=None):
     p = argparse.ArgumentParser(
         description="Aggregate 'countme' log records to weekly totals.",
     )
-    p.add_argument("-V", "--version", action="version", version="%(prog)s 0.0.1")
+    p.add_argument("-V", "--version", action="version", version=f"%(prog)s {__version__}")
 
     p.add_argument("countme_totals", help="Database containing countme_totals")
 
