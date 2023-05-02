@@ -28,6 +28,7 @@ import time
 
 import mirrors_countme
 import mirrors_countme.totals
+from mirrors_countme.version import __version__
 
 locale.setlocale(locale.LC_ALL, "")
 
@@ -40,7 +41,7 @@ def parse_args(argv=None):
     p = argparse.ArgumentParser(
         description="Parse Fedora access.log files.",
     )
-    p.add_argument("-V", "--version", action="version", version="%(prog)s 0.0.1")
+    p.add_argument("-V", "--version", action="version", version=f"%(prog)s {__version__}")
 
     p.add_argument(
         "--sqlite",

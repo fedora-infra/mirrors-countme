@@ -28,6 +28,7 @@ import sys
 
 from mirrors_countme import CountmeMatcher, MirrorMatcher, make_writer
 from mirrors_countme.parse import parse
+from mirrors_countme.version import __version__
 
 # ===========================================================================
 # ====== CLI parser & main() ================================================
@@ -38,7 +39,7 @@ def parse_args(argv=None):
     p = argparse.ArgumentParser(
         description="Parse Fedora access.log files.",
     )
-    p.add_argument("-V", "--version", action="version", version="%(prog)s 0.0.1")
+    p.add_argument("-V", "--version", action="version", version=f"%(prog)s {__version__}")
 
     p.add_argument("logs", metavar="LOG", nargs="+", help="access_log file(s) to parse")
 
