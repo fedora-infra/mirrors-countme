@@ -48,7 +48,7 @@ __all__ = (
 )
 
 from datetime import datetime, timedelta, timezone
-from typing import NamedTuple, Optional, Type, Union
+from typing import NamedTuple, Type
 from urllib.parse import parse_qsl
 
 from .regex import COUNTME_LOG_RE, MIRRORS_LOG_RE
@@ -145,10 +145,10 @@ class LogItem(NamedTuple):
     time: str
     method: str
     path: str
-    query: Optional[str]
+    query: str | None
     protocol: str
     status: int
-    nbytes: Optional[int]
+    nbytes: int | None
     referrer: str
     user_agent: str
 
@@ -178,8 +178,8 @@ class MirrorItem(NamedTuple):
 
     timestamp: int
     host: str
-    repo_tag: Optional[str]
-    repo_arch: Optional[str]
+    repo_tag: str | None
+    repo_arch: str | None
 
 
 class CountmeItem(NamedTuple):
@@ -203,7 +203,7 @@ class LogMatcher:
     """Base class for a LogMatcher, which iterates through a log file"""
 
     regex = NotImplemented
-    itemtuple: Union[Type[MirrorItem], Type[CountmeItem]]
+    itemtuple: Type[MirrorItem] | Type[CountmeItem]
 
     def __init__(self, fileobj):
         self.fileobj = fileobj
@@ -342,10 +342,10 @@ class SQLiteWriter(ItemWriter):
         str: "TEXT NOT NULL",
         float: "REAL NOT NULL",
         bytes: "BLOB NOT NULL",
-        Optional[int]: "INTEGER",
-        Optional[str]: "TEXT",
-        Optional[float]: "REAL",
-        Optional[bytes]: "BLOB",
+        int | None: "INTEGER",
+        str | None: "TEXT",
+        float | None: "REAL",
+        bytes | None: "BLOB",
     }
 
     def _sqltype(self, fieldname):

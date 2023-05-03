@@ -1,13 +1,13 @@
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Iterator, Union
+from typing import Iterator
 
 from .progress import ReadProgress
 
 
 @contextmanager
-def pre_process(filepath: Union[str, Path]) -> Iterator[str]:
+def pre_process(filepath: str | Path) -> Iterator[str]:
     filepath = Path(filepath)
     with NamedTemporaryFile(
         prefix=f"mirrors-countme-{filepath.name}-",
