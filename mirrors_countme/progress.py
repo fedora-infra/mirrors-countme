@@ -21,7 +21,7 @@ import os
 import sys
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator, Union
+from typing import Iterator
 
 from .regex import LOG_DATE_RE
 
@@ -89,7 +89,7 @@ def log_total_size(logfn):
 
 
 @contextmanager
-def no_preprocess(filepath: Union[str, Path]) -> Iterator[str]:
+def no_preprocess(filepath: str | Path) -> Iterator[str]:
     yield str(filepath)
 
 
