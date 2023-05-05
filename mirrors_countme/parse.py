@@ -1,3 +1,4 @@
+import sys
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -15,11 +16,11 @@ def pre_process(filepath: str | Path) -> Iterator[str]:
     ) as tmpfile:
         import subprocess
 
-        print(f"Preprocessing file: {filepath}")
+        print(f"Preprocessing file: {filepath}", file=sys.stderr)
         cmd = ["grep", "countme", str(filepath)]
         r = subprocess.run(cmd, stdout=tmpfile)
         if r.returncode != 0:
-            print(f"Preprocessing file failed, returning original: {filepath}")
+            print(f"Preprocessing file failed, returning original: {filepath}", file=sys.stderr)
             yield str(filepath)
         yield tmpfile.name
 
