@@ -78,6 +78,8 @@ BucketSelect = CountBucket(
 
 
 class TotalsItem(NamedTuple):
+    """TotalsItem is CountBucket with a "hits" count on the front."""
+
     hits: int
     weeknum: str  # this is a query
     os_name: str
@@ -91,9 +93,6 @@ class TotalsItem(NamedTuple):
     @classmethod
     def from_item(cls, item):
         return cls._make((weeknum(item.timestamp),) + item[2:])
-
-
-TotalsItem.__doc__ = """TotalsItem is CountBucket with a "hits" count on the front."""
 
 
 class CSVCountItem(NamedTuple):
