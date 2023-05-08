@@ -274,7 +274,8 @@ class ItemWriter:
         self._fp = fp
         self._itemtuple = itemtuple
         self._fields = itemtuple._fields
-        assert timefield in self._fields, f"{itemtuple.__name__!r} has no time field {timefield!r}"
+        if timefield not in self._fields:
+            raise ValueError(f"{itemtuple.__name__!r} has no time field {timefield!r}")
         self._timefield = timefield
         self._get_writer(**kwargs)
 
