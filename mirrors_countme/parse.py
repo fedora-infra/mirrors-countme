@@ -35,7 +35,7 @@ def parse_from_iterator(args, lines):
 
         # TEMP WORKAROUND: filter out match items with missing values
         if args.matchmode == "countme":
-            match_iter = filter(lambda i: None not in i, match_iter)
+            match_iter = (i for i in match_iter if None not in i)
 
         # Duplicate data check (for sqlite output)
         if args.dupcheck:
