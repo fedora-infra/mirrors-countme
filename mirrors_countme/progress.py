@@ -17,7 +17,10 @@
 #
 # Author: Will Woods <wwoods@redhat.com>
 
+import gzip
+import lzma
 import os
+import subprocess
 import sys
 from contextlib import contextmanager
 from pathlib import Path
@@ -44,20 +47,14 @@ def log_date(line):
 
 def log_reader(logfn):
     if logfn.endswith(".xz"):
-        import lzma
-
         return lzma.open(logfn, mode="rt")
     elif logfn.endswith(".gz"):
-        import gzip
-
         return gzip.open(logfn, mode="rt")
     else:
         return open(logfn, mode="rt")
 
 
 def xz_log_size(xz_filename):
-    import subprocess
-
     cmd = ["xz", "--list", "--robot", xz_filename]
     r = subprocess.run(cmd, stdout=subprocess.PIPE)
     if r.returncode != 0:
@@ -69,8 +66,6 @@ def xz_log_size(xz_filename):
 
 
 def gz_log_size(gz_filename):
-    import subprocess
-
     cmd = ["gzip", "--quiet", "--list", gz_filename]
     r = subprocess.run(cmd, stdout=subprocess.PIPE)
     if r.returncode != 0:
