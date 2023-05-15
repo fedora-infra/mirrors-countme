@@ -1,3 +1,4 @@
+import subprocess
 import sys
 from contextlib import contextmanager
 from pathlib import Path
@@ -14,8 +15,6 @@ def pre_process(filepath: str | Path) -> Iterator[str]:
         prefix=f"mirrors-countme-{filepath.name}-",
         suffix=".preprocessed",
     ) as tmpfile:
-        import subprocess
-
         print(f"Preprocessing file: {filepath}", file=sys.stderr)
         cmd = ["grep", "countme", str(filepath)]
         r = subprocess.run(cmd, stdout=tmpfile)

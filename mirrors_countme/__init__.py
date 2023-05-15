@@ -47,6 +47,9 @@ __all__ = (
     "CountmeMatcher",
 )
 
+import csv
+import json
+import sqlite3
 from datetime import datetime, timedelta, timezone
 from typing import NamedTuple, Type
 from urllib.parse import parse_qsl
@@ -298,8 +301,6 @@ class ItemWriter:
 
 class JSONWriter(ItemWriter):
     def _get_writer(self, **kwargs):
-        import json
-
         self._dump = json.dump
 
     def write_item(self, item):
@@ -308,8 +309,6 @@ class JSONWriter(ItemWriter):
 
 class CSVWriter(ItemWriter):
     def _get_writer(self, **kwargs):
-        import csv
-
         self._writer = csv.writer(self._fp)
 
     def write_header(self):
@@ -354,8 +353,6 @@ class SQLiteWriter(ItemWriter):
         return self.SQL_TYPE.get(typehint, "TEXT")
 
     def _get_writer(self, tablename="countme_raw", **kwargs):
-        import sqlite3
-
         if hasattr(self._fp, "name"):
             filename = self._fp.name
         else:
@@ -486,8 +483,6 @@ class ItemReader:
 
 class CSVReader(ItemReader):
     def _get_reader(self, **kwargs):
-        import csv
-
         self._reader = csv.reader(self._fp)
 
     def _get_fields(self):
@@ -517,15 +512,11 @@ class AWKReader(CSVReader):
 
 class JSONReader(CSVReader):
     def _get_reader(self, **kwargs):
-        import json
-
         self._reader = (json.loads(line) for line in self._fp)
 
 
 class SQLiteReader(ItemReader):
     def _get_reader(self, tablename="countme_raw", timefield="timestamp", **kwargs):
-        import sqlite3
-
         if hasattr(self._fp, "name"):
             filename = self._fp.name
         else:
