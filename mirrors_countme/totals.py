@@ -3,6 +3,13 @@ from collections import Counter
 from typing import NamedTuple
 
 from . import CountmeItem, CSVWriter, SQLiteReader, SQLiteWriter, weeknum
+from .constants import (
+    COUNTME_EPOCH,
+    COUNTME_EPOCH_ORDINAL,
+    COUNTME_START_WEEKNUM,
+    LOG_JITTER_WINDOW,
+    WEEK_LEN,
+)
 from .progress import diyprog as Progress
 
 # NOTE: log timestamps do not move monotonically forward, but they don't
@@ -18,20 +25,6 @@ from .progress import diyprog as Progress
 # in 24-hour chunks, any window that extends into the next day means we have to
 # wait 24 hours until we can be sure we have all the data for the previous
 # week, so the effect would be the same if this was 3600 or 43200 or whatever.
-# TODO: this should probably move into the module somewhere..
-LOG_JITTER_WINDOW = 600
-
-# Feb 11 2020 was the date that we branched F32 from Rawhide, so we've decided
-# to use that as the starting week for countme data.
-COUNTME_START_TIME = 1581292800  # =Mon Feb 10 00:00:00 2020 (UTC)
-COUNTME_START_WEEKNUM = 2614
-
-DAY_LEN = 24 * 60 * 60
-WEEK_LEN = 7 * DAY_LEN
-COUNTME_EPOCH = 345600  # =00:00:00 Mon Jan 5 00:00:00 1970 (UTC)
-
-# And here's how you convert a weeknum to a human-readable date
-COUNTME_EPOCH_ORDINAL = 719167
 
 
 def weekdate(weeknum, weekday=0):

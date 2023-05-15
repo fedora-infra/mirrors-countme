@@ -51,6 +51,7 @@ from datetime import datetime, timedelta, timezone
 from typing import NamedTuple, Type
 from urllib.parse import parse_qsl
 
+from .constants import COUNTME_EPOCH, MONTHIDX, WEEK_LEN
 from .regex import COUNTME_LOG_RE, MIRRORS_LOG_RE
 
 _orig_parse_qsl = parse_qsl
@@ -65,24 +66,6 @@ parse_qsl = _parse_qsl
 # ===========================================================================
 # ====== Output item definitions and helpers ================================
 # ===========================================================================
-
-DAY_LEN = 24 * 60 * 60
-WEEK_LEN = 7 * DAY_LEN
-COUNTME_EPOCH = 345600  # =00:00:00 Mon Jan 5 00:00:00 1970 (UTC)
-MONTHIDX = {
-    "Jan": 1,
-    "Feb": 2,
-    "Mar": 3,
-    "Apr": 4,
-    "May": 5,
-    "Jun": 6,
-    "Jul": 7,
-    "Aug": 8,
-    "Sep": 9,
-    "Oct": 10,
-    "Nov": 11,
-    "Dec": 12,
-}
 
 
 def weeknum(timestamp):
