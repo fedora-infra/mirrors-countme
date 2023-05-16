@@ -154,16 +154,16 @@ class RawDB(SQLiteReader):
         )
 
 
-def totals(args):
+def totals(*, countme_totals, countme_raw=None, progress=False, csv_dump=None):
     # Initialize the writer (better to fail early..)
     totals = SQLiteWriter(
-        args.countme_totals, TotalsItem, timefield="weeknum", tablename="countme_totals"
+        countme_totals, TotalsItem, timefield="weeknum", tablename="countme_totals"
     )
     totals.write_header()
 
     # Are we doing an update?
-    if args.countme_raw:
-        rawdb = RawDB(args.countme_raw)
+    if countme_raw:
+        rawdb = RawDB(countme_raw)
 
         # Check to see if there's any new weeks to get data for
         complete_weeks = sorted(rawdb.complete_weeks())
@@ -179,7 +179,7 @@ def totals(args):
             prog = Progress(
                 total=total,
                 desc=desc,
-                disable=True if not args.progress else None,
+                disable=True if not progress else None,
                 unit="row",
                 unit_scale=False,
             )
@@ -198,14 +198,14 @@ def totals(args):
         totals.write_index()
 
     # Was a CSV dump requested?
-    if args.csv_dump:
+    if csv_dump:
         totalreader = SQLiteReader(
-            args.countme_totals,
+            countme_totals,
             TotalsItem,
             timefield="weeknum",
             tablename="countme_totals",
         )
-        writer = CSVWriter(args.csv_dump, CSVCountItem, timefield="week_start")
+        writer = CSVWriter(csv_dump, CSVCountItem, timefield="week_start")
         writer.write_header()
         for item in totalreader:
             writer.write_item(CSVCountItem.from_totalitem(item))

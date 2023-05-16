@@ -45,6 +45,11 @@ def parse_args(argv=None):
 if __name__ == "__main__":
     try:
         args = parse_args()
-        totals(args)
+        totals(
+            countme_totals=args.countme_totals,
+            countme_raw=args.countme_raw,
+            progress=args.progress,
+            csv_dump=args.csv_dump,
+        )
     except KeyboardInterrupt:
         raise SystemExit(3)  # You know, 3, like 'C', like Ctrl-C!

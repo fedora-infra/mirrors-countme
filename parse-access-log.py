@@ -114,6 +114,16 @@ def parse_args(argv=None):
 if __name__ == "__main__":
     try:
         args = parse_args()
-        parse(args)
+        parse(
+            matchmode=args.matchmode,
+            matcher=args.matcher,
+            sqlite=args.sqlite,
+            header=args.header,
+            db_index=args.db_index,
+            dupcheck=args.dupcheck,
+            writer=args.writer,
+            logs=args.logs,
+            progress=args.progress,
+        )
     except KeyboardInterrupt:
         raise SystemExit(3)  # sure, 3 is good, why not
