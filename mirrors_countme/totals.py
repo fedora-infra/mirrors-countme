@@ -53,10 +53,6 @@ class CountBucket(NamedTuple):
     repo_tag: str
     repo_arch: str
 
-    @classmethod
-    def from_item(cls, item):
-        return cls._make((weeknum(item.timestamp),) + item[2:])
-
 
 BucketSelect = CountBucket(
     weeknum=f"((timestamp-{COUNTME_EPOCH})/{WEEK_LEN}) as weeknum",
@@ -82,10 +78,6 @@ class TotalsItem(NamedTuple):
     sys_age: str  # this is a key
     repo_tag: str
     repo_arch: str
-
-    @classmethod
-    def from_item(cls, item):
-        return cls._make((weeknum(item.timestamp),) + item[2:])
 
 
 class CSVCountItem(NamedTuple):
@@ -122,12 +114,6 @@ class CSVCountItem(NamedTuple):
 class RawDB(SQLiteReader):
     def __init__(self, fp, **kwargs):
         super().__init__(fp, CountmeItem, tablename="countme_raw", **kwargs)
-
-    def _minmax(self, column):
-        cursor = self._connection.execute(
-            f"SELECT min({column}),max({column}) FROM {self._tablename}"
-        )
-        return cursor.fetchone()
 
     def complete_weeks(self):
         """Return a range(startweek, provweek) that covers (valid + complete)
