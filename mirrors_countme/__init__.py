@@ -75,22 +75,6 @@ def weeknum(timestamp):
     return (int(timestamp) - COUNTME_EPOCH) // WEEK_LEN
 
 
-def strptime_logtime(logtime):
-    return datetime.strptime(logtime, "%d/%b/%Y:%H:%M:%S %z")
-
-
-def logtime_to_isoformat(logtime):
-    # logtime: '29/Mar/2020:16:04:28 +0000'
-    # ISO8601: '2020-03-29T16:04:28+00:00'
-    y = logtime[7:11]
-    m = MONTHIDX[logtime[3:6]]
-    d = logtime[0:2]
-    time = logtime[12:20]
-    offh = logtime[21:24]
-    offm = logtime[24:26]
-    return f"{y}-{m:02}-{d}T{time}{offh}:{offm}"
-
-
 def offset_to_timezone(offset):
     """Convert a UTC offset like -0400 to a datetime.timezone instance"""
     offmin = 60 * int(offset[1:3]) + int(offset[3:5])
@@ -143,12 +127,6 @@ class LogItem(NamedTuple):
 
     def timestamp(self):
         return parse_logtime(self.time).timestamp()
-
-    def queryitems(self):
-        return parse_qsl(self.query)
-
-    def querydict(self):
-        return parse_querydict(self.query)
 
 
 # TODO: would be kinda nice if there was a clear subclass / translation
@@ -486,16 +464,6 @@ class CSVReader(ItemReader):
     def _find_item(self, item):
         stritem = self._itemfactory(str(v) for v in item)
         return stritem in self._dup()  # O(n) worst case. Again: gross.
-
-
-class AWKReader(CSVReader):
-    def _get_reader(self, field_separator="\t", **kwargs):
-        self._reader = (line.split(field_separator) for line in self._fp)
-
-
-class JSONReader(CSVReader):
-    def _get_reader(self, **kwargs):
-        self._reader = (json.loads(line) for line in self._fp)
 
 
 class SQLiteReader(ItemReader):

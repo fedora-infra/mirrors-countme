@@ -181,17 +181,6 @@ class diyprog:
                 break
         return f"{n:.1f}{suffix}"
 
-    @staticmethod
-    def hrtime(nsecs):
-        m, s = divmod(int(nsecs), 60)
-        if m > 60:
-            h, m = divmod(m, 60)
-            return f"{h:02d}h{m:02d}m{s:02d}s"
-        elif m:
-            return f"{m:02d}m{s:02d}s"
-        else:
-            return f"{s:02d}s"
-
     def display(self):
         unit = self.unit
         desc = self.desc
