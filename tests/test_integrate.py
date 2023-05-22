@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, List, NamedTuple
 
 import pytest
-from hypothesis import HealthCheck, given, settings
+from hypothesis import given
 from hypothesis import strategies as st
 
 from mirrors_countme import CountmeMatcher, make_writer
@@ -143,25 +143,23 @@ def create_logline(ip, date, repo):
 
 @st.composite
 def log_data(draw):
-    ip_sample = st.lists(st.ip_addresses(), 10, unique=True)
+    ip_sample = st.lists(st.ip_addresses(), min_size=10, max_size=10, unique=True)
     repo = st.sampled_from(["Fedora", "epel-7", "centos8"])
     ips = draw(ip_sample)
     today = datetime.datetime.now()
     dates = [today - datetime.timedelta(days=d, hours=i) for i in range(1, 2) for d in range(1, 14)]
 
-    return list(
-        sorted(((date, ip, draw(repo)) for ip in ips for date in dates), key=lambda x: x[0])
-    )
+    return sorted(((date, ip, draw(repo)) for ip in ips for date in dates), key=lambda x: x[0])
 
 
-@settings(suppress_health_check=(HealthCheck.too_slow,))
-@given(log_data())
-@pytest.mark.skip(reason="Zuul doesn't like this")
+@given(loglines=log_data())
 def test_log(loglines):
     with tempfile.TemporaryDirectory() as tmp_dir:
+        rawdb = f"{tmp_dir}/test.db"
+        totalsdb = f"{tmp_dir}/test_generated_totals.db"
         matcher = CountmeMatcher
         args = Args(
-            writer=make_writer("sqlite", str(tmp_dir + "/test.db"), matcher.itemtuple),
+            writer=make_writer("sqlite", rawdb, matcher.itemtuple),
             matcher=matcher,
             dupcheck=True,
             index=True,
@@ -170,18 +168,19 @@ def test_log(loglines):
             matchmode="countme",
             format="csv",
             logs=[],
-            sqlite=str(tmp_dir + "/test.db"),
+            sqlite=rawdb,
         )
         parse_from_iterator(args, [(create_logline(ip, date, repo) for date, ip, repo in loglines)])
-        db = sqlite3.connect(args.sqlite)
+        db = sqlite3.connect(rawdb)
         rows_no = db.execute("select count(*) from countme_raw;").fetchone()[0]
         assert rows_no == len(loglines)
+
         args = ArgsTotal(
-            countme_totals=str(tmp_dir + "/test_generated_totals.db"),
-            countme_raw=str(tmp_dir + "/test.db"),
+            countme_totals=totalsdb,
+            countme_raw=rawdb,
             progress=False,
             csv_dump=False,
-            sqlite=str(tmp_dir + "/test_generated_totals.db"),
+            sqlite=totalsdb,
         )
         totals(args)
         db = sqlite3.connect(args.sqlite)
