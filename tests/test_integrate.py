@@ -158,31 +158,26 @@ def test_log(loglines):
         rawdb = f"{tmp_dir}/test.db"
         totalsdb = f"{tmp_dir}/test_generated_totals.db"
         matcher = CountmeMatcher
-        args = Args(
-            writer=make_writer("sqlite", rawdb, matcher.itemtuple),
+        parse_from_iterator(
+            [(create_logline(ip, date, repo) for date, ip, repo in loglines)],
             matcher=matcher,
+            writer=make_writer("sqlite", rawdb, matcher.itemtuple),
             dupcheck=True,
             index=True,
-            header=True,
-            progress=False,
             matchmode="countme",
-            format="csv",
-            logs=[],
             sqlite=rawdb,
+            header=True,
         )
-        parse_from_iterator(args, [(create_logline(ip, date, repo) for date, ip, repo in loglines)])
         db = sqlite3.connect(rawdb)
         rows_no = db.execute("select count(*) from countme_raw;").fetchone()[0]
         assert rows_no == len(loglines)
 
-        args = ArgsTotal(
+        totals(
             countme_totals=totalsdb,
             countme_raw=rawdb,
             progress=False,
             csv_dump=False,
-            sqlite=totalsdb,
         )
-        totals(args)
-        db = sqlite3.connect(args.sqlite)
+        db = sqlite3.connect(totalsdb)
         rows_no = db.execute("select count(*) from countme_totals;").fetchone()[0]
         assert int(rows_no) > 0
