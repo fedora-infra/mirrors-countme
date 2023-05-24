@@ -27,7 +27,7 @@ import locale
 import sqlite3
 import time
 
-import mirrors_countme
+from mirrors_countme.constants import COUNTME_EPOCH, WEEK_LEN
 from mirrors_countme.version import __version__
 
 locale.setlocale(locale.LC_ALL, "")
@@ -69,9 +69,9 @@ def get_mintime(connection):
 
 # Find the next week to trim, given the earliest timestamp.
 def next_week(mintime):
-    begin = mirrors_countme.COUNTME_EPOCH
+    begin = COUNTME_EPOCH
     while begin <= mintime:
-        begin += mirrors_countme.WEEK_LEN
+        begin += WEEK_LEN
     # Now begin is the first week _after_ the mintime.
     return begin
 

@@ -26,9 +26,10 @@
 import argparse
 import sys
 
-from mirrors_countme import CountmeMatcher, MirrorMatcher, make_writer
+from mirrors_countme.matchers import CountmeMatcher, MirrorMatcher
 from mirrors_countme.parse import parse
 from mirrors_countme.version import __version__
+from mirrors_countme.writers import make_writer
 
 # ===========================================================================
 # ====== CLI parser & main() ================================================
@@ -119,7 +120,7 @@ if __name__ == "__main__":
             matcher=args.matcher,
             sqlite=args.sqlite,
             header=args.header,
-            db_index=args.db_index,
+            index=args.index,
             dupcheck=args.dupcheck,
             writer=args.writer,
             logs=args.logs,

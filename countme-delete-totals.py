@@ -26,8 +26,7 @@ import locale
 import sqlite3
 import time
 
-import mirrors_countme
-import mirrors_countme.totals
+from mirrors_countme.constants import COUNTME_EPOCH, WEEK_LEN
 from mirrors_countme.version import __version__
 
 locale.setlocale(locale.LC_ALL, "")
@@ -87,8 +86,8 @@ def tm2ui(timestamp):
 
 
 def weeknum2tm(weeknum):
-    ret = mirrors_countme.COUNTME_EPOCH
-    return ret + int(weeknum) * mirrors_countme.WEEK_LEN
+    ret = COUNTME_EPOCH
+    return ret + int(weeknum) * WEEK_LEN
 
 
 def num2ui(num):

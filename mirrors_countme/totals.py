@@ -2,7 +2,6 @@ import datetime
 from collections import Counter
 from typing import NamedTuple
 
-from . import CountmeItem, CSVWriter, SQLiteReader, SQLiteWriter, weeknum
 from .constants import (
     COUNTME_EPOCH,
     COUNTME_EPOCH_ORDINAL,
@@ -10,7 +9,11 @@ from .constants import (
     LOG_JITTER_WINDOW,
     WEEK_LEN,
 )
+from .output_items import CountmeItem
 from .progress import diyprog as Progress
+from .readers import SQLiteReader
+from .util import weeknum
+from .writers import CSVWriter, SQLiteWriter
 
 # NOTE: log timestamps do not move monotonically forward, but they don't
 # seem to ever jump backwards more than 241 seconds. I assume this is
