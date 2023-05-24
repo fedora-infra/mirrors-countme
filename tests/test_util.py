@@ -2,7 +2,8 @@ from contextlib import nullcontext
 
 import pytest
 
-import mirrors_countme
+from mirrors_countme.constants import COUNTME_EPOCH
+from mirrors_countme.util import weeknum
 
 COUNTME_LOG_RE_INPUTS_RESULTS = [
     (
@@ -37,7 +38,7 @@ COUNTME_LOG_RE_INPUTS_RESULTS = [
 @pytest.mark.parametrize(
     "timestamp, expected",
     [
-        (mirrors_countme.COUNTME_EPOCH, 0),
+        (COUNTME_EPOCH, 0),
         (1683208046.7402434, 2782),
         ("1683208046.7402434", ValueError),
     ],
@@ -49,7 +50,7 @@ def test_weeknum(timestamp, expected):
         expectation = pytest.raises(expected)
 
     with expectation:
-        obtained = mirrors_countme.weeknum(timestamp)
+        obtained = weeknum(timestamp)
 
     if isinstance(expected, int):
         assert obtained == expected

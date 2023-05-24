@@ -9,9 +9,10 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from mirrors_countme import CountmeMatcher, make_writer
+from mirrors_countme.matchers import CountmeMatcher
 from mirrors_countme.parse import parse, parse_from_iterator
 from mirrors_countme.totals import totals
+from mirrors_countme.writers import make_writer
 
 HERE = Path(__file__).parent
 TEST_DATA_DIR = HERE.parent / "test_data"
