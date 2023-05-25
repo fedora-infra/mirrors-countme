@@ -1,27 +1,4 @@
-import subprocess
-import sys
-from contextlib import contextmanager
-from pathlib import Path
-from tempfile import NamedTemporaryFile
-from typing import Iterator
-
 from .progress import ReadProgress
-
-
-@contextmanager
-def pre_process(filepath: str | Path) -> Iterator[str]:
-    filepath = Path(filepath)
-    with NamedTemporaryFile(
-        prefix=f"mirrors-countme-{filepath.name}-",
-        suffix=".preprocessed",
-    ) as tmpfile:
-        print(f"Preprocessing file: {filepath}", file=sys.stderr)
-        cmd = ["grep", "countme", str(filepath)]
-        r = subprocess.run(cmd, stdout=tmpfile)
-        if r.returncode != 0:
-            print(f"Preprocessing file failed, returning original: {filepath}", file=sys.stderr)
-            yield str(filepath)
-        yield tmpfile.name
 
 
 def parse_from_iterator(
@@ -76,7 +53,7 @@ def parse(
     logs=None,
 ):
     parse_from_iterator(
-        ReadProgress(logs, display=progress, pre_process=pre_process),
+        ReadProgress(logs, display=progress),
         writer=writer,
         matcher=matcher,
         matchmode=matchmode,
