@@ -101,17 +101,14 @@ class ReadProgressBase:
             unit="b",
             unit_scale=True,
             total=total,
-            disable=True if not self.display else None,
+            disable=not self.display or not total,
         )
-        # Get the first line manually so we can get logdate
-        line = next(logf)
-        desc = f"log {num+1}/{len(self.logs)}, date={log_date(line)}"
-        prog.set_description(desc)
-        # Update bar and yield the first line
-        prog.update(len(line))
-        yield line
-        # And now we do the rest of the file
-        for line in logf:
+
+        for i, line in enumerate(logf):
+            if i == 0:
+                # Set log date from first processed line
+                desc = f"log {num+1}/{len(self.logs)}, date={log_date(line)}"
+                prog.set_description(desc)
             prog.update(len(line))
             yield line
         prog.close()
