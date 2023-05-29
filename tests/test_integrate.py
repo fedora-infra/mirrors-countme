@@ -173,12 +173,16 @@ def test_log(loglines):
         rows_no = db.execute("select count(*) from countme_raw;").fetchone()[0]
         assert rows_no == len(loglines)
 
+        csv_dump = open(f"{tmp_dir}/test.csv", "w+")
         totals(
             countme_totals=totalsdb,
             countme_raw=rawdb,
             progress=False,
-            csv_dump=False,
+            csv_dump=csv_dump,
         )
         db = sqlite3.connect(totalsdb)
         rows_no = db.execute("select count(*) from countme_totals;").fetchone()[0]
         assert int(rows_no) > 0
+
+        csv_dump.seek(0)
+        assert len(csv_dump.readlines()) > 0
