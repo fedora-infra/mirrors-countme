@@ -168,6 +168,9 @@ def totals(*, countme_totals, countme_raw=None, progress=False, csv_dump=None):
     if countme_raw:
         rawdb = RawDB(countme_raw)
 
+        # Make sure we index them by time.
+        totals.write_index()
+
         # Check to see if there's any new weeks to get data for
         complete_weeks = sorted(rawdb.complete_weeks())
         newest_totals = totals.maxtime or -1
@@ -196,9 +199,6 @@ def totals(*, countme_totals, countme_raw=None, progress=False, csv_dump=None):
             # Write the resulting totals into countme_totals
             totals.write_items((hits,) + bucket for bucket, hits in hitcount.items())
             prog.close()
-
-        # Oh and make sure we index them by time.
-        totals.write_index()
 
     # Was a CSV dump requested?
     if csv_dump:

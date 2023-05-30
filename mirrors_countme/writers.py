@@ -47,6 +47,9 @@ class ItemWriter:
     def write_header(self):
         pass
 
+    def commit(self):
+        pass
+
     def write_index(self):
         pass
 
@@ -144,9 +147,12 @@ class SQLiteWriter(ItemWriter):
         with self._connection:
             self._connection.executemany(self._insert_item, items)
 
+    def commit(self):
+        self._connection.commit()
+
     def write_index(self):
         self._cursor.execute(self._create_time_index)
-        self._connection.commit()
+        self.commit()
 
     def has_item(self, item):
         """Return True if a row matching `item` exists in this database."""

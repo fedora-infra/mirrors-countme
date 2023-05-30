@@ -15,6 +15,9 @@ def parse_from_iterator(
     if header or sqlite:
         writer.write_header()
 
+    if index:
+        writer.write_index()
+
     for logf in logfiles:
         # Make an iterator object for the matching log lines
         match_iter = iter(matcher(logf))
@@ -23,21 +26,17 @@ def parse_from_iterator(
         if matchmode == "countme":
             match_iter = (i for i in match_iter if None not in i)
 
-        # Duplicate data check (for sqlite output)
         if dupcheck:
+            # Duplicate data check (for sqlite output)
             for item in match_iter:
                 if writer.has_item(item):  # if it's already in the db...
                     continue  # skip to next log
 
                 writer.write_item(item)  # insert it into the db
-            # There should be no items left, but to be safe...
-            continue
-
-        # Write matching items (sqlite does commit at end, or rollback on error)
-        writer.write_items(match_iter)
-
-    if index:
-        writer.write_index()
+            writer.commit()
+        else:
+            # Write matching items (sqlite does commit at end, or rollback on error)
+            writer.write_items(match_iter)
 
 
 def parse(
