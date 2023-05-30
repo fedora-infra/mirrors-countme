@@ -58,7 +58,7 @@ def parse(
         matcher=matcher,
         matchmode=matchmode,
         header=header,
-        sqlite=header,
+        sqlite=sqlite,
         dupcheck=dupcheck,
         index=index,
     )
