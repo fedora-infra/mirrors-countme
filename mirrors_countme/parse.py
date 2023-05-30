@@ -2,7 +2,7 @@ from .progress import ReadProgress
 
 
 def parse_from_iterator(
-    lines,
+    logfiles,
     *,
     writer,
     matcher,
@@ -15,7 +15,7 @@ def parse_from_iterator(
     if header or sqlite:
         writer.write_header()
 
-    for logf in lines:
+    for logf in logfiles:
         # Make an iterator object for the matching log lines
         match_iter = iter(matcher(logf))
 
