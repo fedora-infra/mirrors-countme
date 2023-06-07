@@ -15,7 +15,6 @@
 #
 # Author: Will Woods <wwoods@redhat.com>
 
-import csv
 import sqlite3
 
 # ===========================================================================
@@ -69,30 +68,6 @@ class ItemReader:
         return self._find_item(item)
 
 
-class CSVReader(ItemReader):
-    def _get_reader(self, **kwargs):
-        self._reader = csv.reader(self._fp)
-
-    def _get_fields(self):
-        filefields = tuple(next(self._reader))
-        # Sanity check: if any fieldname is a number... this isn't a header
-        if any(name.isnumeric() for name in filefields):
-            header = ",".join(filefields)
-            raise ReaderError(f"header bad/missing: expected {self._itemfields}, got {header!r}")
-        return filefields
-
-    def _iter_rows(self):
-        return self._reader
-
-    def _dup(self):
-        # This is pretty gross, but then, so's CSV
-        return self.__class__(open(self._fp.name, "rt"), self._itemtuple)
-
-    def _find_item(self, item):
-        stritem = self._itemfactory(str(v) for v in item)
-        return stritem in self._dup()  # O(n) worst case. Again: gross.
-
-
 class SQLiteReader(ItemReader):
     def _get_reader(self, tablename="countme_raw", timefield="timestamp", **kwargs):
         if hasattr(self._fp, "name"):
@@ -129,23 +104,3 @@ class SQLiteReader(ItemReader):
     def maxtime(self):
         cursor = self._cursor.execute(f"SELECT MAX({self._timefield}) FROM {self._tablename}")
         return cursor.fetchone()[0]
-
-
-# Guess the right reader based on the filename.
-def guessreader(fp):
-    if fp.name.endswith(".csv"):
-        reader = CSVReader
-    elif fp.name.endswith(".db"):
-        reader = SQLiteReader
-    else:
-        # FIXME: better format detection!!
-        # TODO: if fp is seekable, peek and figure out filetype
-        reader = None
-    return reader
-
-
-# TODO: should have name/args more like make_writer...
-def autoreader(fp, itemtuple, **kwargs):
-    """Convenience function to guess & instantiate the right writer"""
-    reader = guessreader(fp)
-    return reader(fp, itemtuple, **kwargs)
