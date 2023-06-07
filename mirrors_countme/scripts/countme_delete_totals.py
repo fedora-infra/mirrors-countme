@@ -26,8 +26,8 @@ import locale
 import sqlite3
 import time
 
-from mirrors_countme.constants import COUNTME_EPOCH, WEEK_LEN
-from mirrors_countme.version import __version__
+from ..constants import COUNTME_EPOCH, WEEK_LEN
+from ..version import __version__
 
 locale.setlocale(locale.LC_ALL, "")
 
@@ -115,7 +115,7 @@ def trim_data(connection, week):
     _del_entries_for(connection, week)
 
 
-if __name__ == "__main__":
+def cli():
     try:
         args = parse_args()
         connection, week = get_trim_data(args.sqlite)

@@ -30,6 +30,12 @@ ruff = "^0.0.263 || ^0.0.264 || ^0.0.265 || ^0.0.269 || ^0.0.270 || ^0.0.272"
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.poetry.scripts]
+countme-totals = "mirrors_countme.scripts.countme_totals:cli"
+countme-trim-raw = "mirrors_countme.scripts.countme_trim_raw:cli"
+countme-parse-access-log = "mirrors_countme.scripts.countme_parse_access_log:cli"
+countme-delete-totals = "mirrors_countme.scripts.countme_delete_totals:cli"
+
 [tool.pytest.ini_options]
 addopts = "--cov-config .coveragerc --cov=mirrors_countme --cov-report term --cov-report xml --cov-report html"
 

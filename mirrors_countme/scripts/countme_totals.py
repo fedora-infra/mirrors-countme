@@ -2,8 +2,8 @@
 
 import argparse
 
-from mirrors_countme.totals import totals
-from mirrors_countme.version import __version__
+from ..totals import totals
+from ..version import __version__
 
 # ===========================================================================
 # ====== CLI parser & __main__ ==============================================
@@ -42,7 +42,7 @@ def parse_args(argv=None):
     return args
 
 
-if __name__ == "__main__":
+def cli():
     try:
         args = parse_args()
         totals(

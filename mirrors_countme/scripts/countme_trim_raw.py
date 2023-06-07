@@ -29,8 +29,8 @@ import math
 import sqlite3
 import time
 
-from mirrors_countme.constants import COUNTME_EPOCH, WEEK_LEN
-from mirrors_countme.version import __version__
+from ..constants import COUNTME_EPOCH, WEEK_LEN
+from ..version import __version__
 
 CONF_NON_RECENT_DURATION_WEEKS = 13
 WARN_SECONDS = 5
@@ -175,7 +175,7 @@ def _main():
     trim_data(connection=connection, trim_begin=trim_begin, trim_end=trim_end, rw=args.rw)
 
 
-if __name__ == "__main__":
+def cli():
     try:
         _main()
     except KeyboardInterrupt:
