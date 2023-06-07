@@ -141,13 +141,8 @@ class RawDB(SQLiteReader):
         )
         return cursor.fetchone()[0]
 
-    def week_iter(self, weeknum, select="*"):
-        if isinstance(select, (tuple, list)):
-            item_select = ",".join(select)
-        elif isinstance(select, str):
-            item_select = select
-        else:
-            raise ValueError(f"select should be a string or tuple, not {select.__class__.__name__}")
+    def week_iter(self, weeknum, select: tuple | list):
+        item_select = ",".join(select)
         start_ts = weeknum * WEEK_LEN + COUNTME_EPOCH
         end_ts = start_ts + WEEK_LEN
         return self._connection.execute(
@@ -199,6 +194,8 @@ def totals(*, countme_totals, countme_raw=None, progress=False, csv_dump=None):
             # Write the resulting totals into countme_totals
             totals.write_items((hits,) + bucket for bucket, hits in hitcount.items())
             prog.close()
+    else:  # pragma: no cover
+        pass
 
     # Was a CSV dump requested?
     if csv_dump:
@@ -212,3 +209,5 @@ def totals(*, countme_totals, countme_raw=None, progress=False, csv_dump=None):
         writer.write_header()
         for item in totalreader:
             writer.write_item(CSVCountItem.from_totalitem(item))
+    else:  # pragma: no cover
+        pass
