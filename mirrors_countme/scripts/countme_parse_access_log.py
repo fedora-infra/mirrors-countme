@@ -26,10 +26,10 @@
 import argparse
 import sys
 
-from mirrors_countme.matchers import CountmeMatcher, MirrorMatcher
-from mirrors_countme.parse import parse
-from mirrors_countme.version import __version__
-from mirrors_countme.writers import make_writer
+from ..matchers import CountmeMatcher, MirrorMatcher
+from ..parse import parse
+from ..version import __version__
+from ..writers import make_writer
 
 # ===========================================================================
 # ====== CLI parser & main() ================================================
@@ -112,7 +112,7 @@ def parse_args(argv=None):
     return args
 
 
-if __name__ == "__main__":
+def cli():
     try:
         args = parse_args()
         parse(
