@@ -19,6 +19,8 @@ import csv
 import json
 import sqlite3
 
+from .util import MinMaxPropMixin
+
 # ===========================================================================
 # ====== ItemWriters - output formatting classes ============================
 # ===========================================================================
@@ -87,7 +89,7 @@ class AWKWriter(ItemWriter):
         self._write_row(item)
 
 
-class SQLiteWriter(ItemWriter):
+class SQLiteWriter(ItemWriter, MinMaxPropMixin):
     """Write each item as a new row in a SQLite database table."""
 
     # We have to get a little fancier with types here since SQL tables expect
@@ -161,16 +163,6 @@ class SQLiteWriter(ItemWriter):
             f"SELECT COUNT(*) FROM {self._tablename} WHERE {condition}", item
         )
         return bool(cursor.fetchone()[0])
-
-    @property
-    def mintime(self):
-        cursor = self._cursor.execute(f"SELECT MIN({self._timefield}) FROM {self._tablename}")
-        return cursor.fetchone()[0]
-
-    @property
-    def maxtime(self):
-        cursor = self._cursor.execute(f"SELECT MAX({self._timefield}) FROM {self._tablename}")
-        return cursor.fetchone()[0]
 
 
 def make_writer(name, *args, **kwargs):

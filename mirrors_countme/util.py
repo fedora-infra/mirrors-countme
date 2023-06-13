@@ -15,7 +15,10 @@
 #
 # Author: Will Woods <wwoods@redhat.com>
 
+import sqlite3
 from datetime import datetime, timedelta, timezone
+from functools import partial
+from typing import Literal
 from urllib.parse import parse_qsl
 
 from .constants import COUNTME_EPOCH, MONTHIDX, WEEK_LEN
@@ -57,3 +60,63 @@ def parse_logtime(logtime):
 def parse_querydict(querystr):
     """Parse request query the way mirrormanager does (last value wins)"""
     return dict(parse_qsl(querystr, separator="&"))
+
+
+def _fetchone_or_none(cursor):
+    """Return the result, or None, if there was no result. For min/max time."""
+    res = cursor.fetchone()
+    if res is None:
+        return None
+    return res[0]
+
+
+def _get_minmaxtime(
+    *,
+    connection: sqlite3.Connection | sqlite3.Cursor,
+    minmax: Literal["min"] | Literal["max"],
+    timefield: str,
+    tablename: str,
+    where: str | None = None,
+):
+    query = f"SELECT {minmax.upper()}({timefield}) FROM {tablename}"
+    if where:
+        query += f" WHERE {where}"
+    cursor = connection.execute(query)
+    return _fetchone_or_none(cursor)
+
+
+class MinMaxPropMixin:
+    """
+    A mixin to add mintime and maxtime properties
+
+    The suffixed properties distinguish between entries for countme and unique
+    IP statistics.
+
+    This is for the reader and writer classes which have _cursor, _timefield
+    and _tablename attributes.
+    """
+
+    def _get_minmaxtime_obj(
+        self, minmax: Literal["min"] | Literal["max"], where: str | None = None
+    ):
+        return _get_minmaxtime(
+            connection=self._cursor,
+            minmax=minmax,
+            timefield=self._timefield,
+            tablename=self._tablename,
+            where=where,
+        )
+
+    _get_mintime = partial(_get_minmaxtime_obj, minmax="min")
+    _get_maxtime = partial(_get_minmaxtime_obj, minmax="max")
+    _get_mintime_countme = partial(_get_minmaxtime_obj, minmax="min", where="sys_age >= 0")
+    _get_maxtime_countme = partial(_get_minmaxtime_obj, minmax="max", where="sys_age >= 0")
+    _get_mintime_unique = partial(_get_minmaxtime_obj, minmax="min", where="sys_age < 0")
+    _get_maxtime_unique = partial(_get_minmaxtime_obj, minmax="max", where="sys_age < 0")
+
+    mintime = property(_get_mintime)
+    maxtime = property(_get_maxtime)
+    mintime_countme = property(_get_mintime_countme)
+    maxtime_countme = property(_get_maxtime_countme)
+    mintime_unique = property(_get_mintime_unique)
+    maxtime_unique = property(_get_maxtime_unique)

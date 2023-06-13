@@ -86,7 +86,7 @@ class CountmeMatcher(LogMatcher):
             os_version=match["os_version"],
             os_variant=match["os_variant"],
             os_arch=match["os_arch"],
-            sys_age=int(query.get("countme")),
+            sys_age=int(query.get("countme", -1)),
             repo_tag=query.get("repo"),
             repo_arch=query.get("arch"),
         )

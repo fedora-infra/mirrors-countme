@@ -1,5 +1,7 @@
 import datetime as dt
+import re
 from contextlib import nullcontext
+from unittest import mock
 
 import pytest
 
@@ -77,3 +79,64 @@ def test_parse_logtime(logtime, expected):
 )
 def test_parse_querydict(querystr, expected):
     assert util.parse_querydict(querystr) == expected
+
+
+@pytest.mark.parametrize("has_result", (True, False), ids=("with-result", "without-result"))
+def test__fetchone_or_none(has_result):
+    cursor = mock.Mock()
+    if has_result:
+        cursor.fetchone.return_value = [result_sentinel := object()]
+    else:
+        cursor.fetchone.return_value = None
+
+    result = util._fetchone_or_none(cursor)
+
+    if has_result:
+        assert result is result_sentinel
+    else:
+        assert result is None
+
+
+class MinMaxProp(util.MinMaxPropMixin):
+    def __init__(self):
+        self._cursor = mock.Mock()
+        self._timefield = "timestamp"
+        self._tablename = "countme_raw"
+
+
+class TestMinMaxPropMixin:
+    @pytest.mark.parametrize(
+        "property_name",
+        (
+            "mintime_countme",
+            "maxtime_countme",
+            "mintime_unique",
+            "maxtime_unique",
+            "mintime",
+            "maxtime",
+        ),
+    )
+    def test_minmaxtime_properties(self, property_name):
+        test_obj = MinMaxProp()
+
+        with mock.patch("mirrors_countme.util._fetchone_or_none") as _fetchone_or_none:
+            min_or_max = property_name[:3]  # "min" or "max"
+            if property_name.endswith("_countme"):
+                query_filter_snippet = r"\s+where\s+sys_age\s*>=\s*0"
+            elif property_name.endswith("_unique"):
+                query_filter_snippet = r"\s+where\s+sys_age\s*<\s*0"
+            else:
+                query_filter_snippet = ""
+            expected_query_re = re.compile(
+                rf"^select\s+{min_or_max}\({test_obj._timefield}\)\s+from\s+"
+                + rf"{test_obj._tablename}{query_filter_snippet}\s*$",
+                re.IGNORECASE,
+            )
+
+            _fetchone_or_none.return_value = result_sentinel = object()
+
+            result = getattr(test_obj, property_name)
+
+            assert result is result_sentinel
+            test_obj._cursor.execute.assert_called_once()
+            assert expected_query_re.match(test_obj._cursor.execute.call_args.args[0])

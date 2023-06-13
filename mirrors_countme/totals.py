@@ -69,6 +69,19 @@ BucketSelect = CountBucket(
 )
 
 
+# Same as BucketSelect, but ignore sys_age
+BucketSelectUniqueIP = CountBucket(
+    weeknum=f"((timestamp-{COUNTME_EPOCH})/{WEEK_LEN}) as weeknum",
+    os_name="os_name",
+    os_version="os_version",
+    os_variant="os_variant",
+    os_arch="os_arch",
+    sys_age="-1",  # roll all sys_age values into one for totals
+    repo_tag="repo_tag",
+    repo_arch="repo_arch",
+)
+
+
 class TotalsItem(NamedTuple):
     """TotalsItem is CountBucket with a "hits" count on the front."""
 
@@ -102,8 +115,8 @@ class CSVCountItem(NamedTuple):
     repo_arch: str
 
     @classmethod
-    def from_totalitem(cls, item):
-        """Use this method to convert a CountItem to a CSVCountItem."""
+    def from_totalsitem(cls, item):
+        """Use this method to convert a TotalsItem to a CSVCountItem."""
         hits, weeknum, *rest = item
         week_start, week_end = daterange(weeknum)
         return cls._make([week_start, week_end, hits] + rest)
@@ -118,28 +131,30 @@ class RawDB(SQLiteReader):
     def __init__(self, filename, **kwargs):
         super().__init__(filename, CountmeItem, tablename="countme_raw", **kwargs)
 
+    @property
+    def mintime(self):
+        return self.mintime_countme
+
+    @property
+    def maxtime(self):
+        return self.maxtime_countme
+
     def complete_weeks(self):
-        """Return a range(startweek, provweek) that covers (valid + complete)
+        """Compute range of complete weeks in database.
+
+        Return a range(startweek, provweek) that covers (valid + complete)
         weeknums contained in this database. The database may contain some
         data for `provweek`, but since it's provisional/incomplete it's
         outside the range."""
+        if self.mintime is None:
+            return []
         # startweek can't be earlier than the first week of data
         startweek = max(weeknum(self.mintime), COUNTME_START_WEEKNUM)
         # A week is provisional until the LOG_JITTER_WINDOW expires, so once
         # tsmax minus LOG_JITTER_WINDOW ticks over into a new weeknum, that
         # weeknum is the provisional one. So...
-        provweek = weeknum(self.maxtime - LOG_JITTER_WINDOW)
+        provweek = max(weeknum(self.maxtime - LOG_JITTER_WINDOW), COUNTME_START_WEEKNUM)
         return range(startweek, provweek)
-
-    def week_count(self, weeknum):
-        start_ts = weeknum * WEEK_LEN + COUNTME_EPOCH
-        end_ts = start_ts + WEEK_LEN
-        cursor = self._connection.execute(
-            f"SELECT COUNT(*)"
-            f" FROM {self._tablename}"
-            f" WHERE timestamp >= {start_ts} AND timestamp < {end_ts}"
-        )
-        return cursor.fetchone()[0]
 
     def week_iter(self, weeknum, select: tuple | list):
         item_select = ",".join(select)
@@ -148,8 +163,88 @@ class RawDB(SQLiteReader):
         return self._connection.execute(
             f"SELECT {item_select}"
             f" FROM {self._tablename}"
-            f" WHERE timestamp >= {start_ts} AND timestamp < {end_ts}"
+            f" WHERE timestamp >= {start_ts} AND timestamp < {end_ts} AND sys_age >= 0"
         )
+
+    def week_count(self, weeknum):
+        cursor = self.week_iter(weeknum, ("COUNT(*)",))
+        return cursor.fetchone()[0]
+
+
+class RawDBU(RawDB):
+    def __init__(self, fp, **kwargs):
+        super().__init__(fp, **kwargs)
+
+    # As the comment in week_count() says, although we look at both countme
+    # and unique IP data ... when we need to know where "the data" starts we
+    # only look for unique IP data, otherwise we could process a week that just
+    # has countme data as also having unique IP data (and get very low numbers).
+    @property
+    def mintime(self):
+        return self.mintime_unique
+
+    @property
+    def maxtime(self):
+        return self.maxtime_unique
+
+    def week_iter(self, weeknum, select: tuple | list):
+        start_ts = weeknum * WEEK_LEN + COUNTME_EPOCH
+        return SplitWeekDays(self, start_ts, select)
+
+    def week_count(self, weeknum):
+        start_ts = weeknum * WEEK_LEN + COUNTME_EPOCH
+        end_ts = start_ts + WEEK_LEN
+
+        # So this is a "problem" ... we could do a GROUP BY as we do in
+        # SplitWeekDays(), but that is basically doing all the same work.
+        # Just counting the rows gets us to roughly 8:1 ... so go with that.
+        # Also note that we do sys_age < 0, so that we find weeks of data that
+        # have unique IP data in it ... even though we'll look at both.
+        cursor = self._connection.execute(
+            f"SELECT COUNT(*)"
+            f" FROM {self._tablename}"
+            f" WHERE timestamp >= {start_ts} AND timestamp < {end_ts} AND sys_age < 0"
+        )
+        return int(cursor.fetchone()[0] / 8)
+
+
+class SplitWeekDays(object):
+    """Pretend to be a SQLite select object. But actually we are 7 of them combined."""
+
+    def __init__(self, rawdb, start_ts, select: tuple | list):
+        self.rawdb = rawdb
+        self.start_ts = start_ts
+        self.select = select
+
+    def __iter__(self):
+        return self.fetchall()
+
+    def fetchone(self):
+        """Probably don't use this."""
+        for x in self.fetchall():
+            return x
+        else:
+            pass  # pragma: no cover
+
+    def fetchall(self):
+        """Get a weeks data of unique IPs, by getting group'd data for each day ... for 7 days."""
+        item_select = ",".join(self.select)
+        start_ts = self.start_ts
+
+        for d in range(7):
+            end_ts = start_ts + (WEEK_LEN / 7)
+            # Can add "COUNT(*) as nip" to test, but need to remove it for writes
+            # Note that we look at _both_ unique/countme data here, so no sys_age
+            # checks.
+            cursor = self.rawdb._connection.execute(
+                f"SELECT {item_select}"
+                f" FROM {self.rawdb._tablename}"
+                f" WHERE timestamp >= {start_ts} AND timestamp < {end_ts}"
+                f" GROUP BY host, os_name, os_version, os_variant, os_arch, repo_tag, repo_arch"
+            )
+            for row in cursor.fetchall():
+                yield row
+            start_ts = end_ts
 
 
 def totals(*, countme_totals, countme_raw=None, progress=False, csv_dump=None):
@@ -168,26 +263,56 @@ def totals(*, countme_totals, countme_raw=None, progress=False, csv_dump=None):
 
         # Check to see if there's any new weeks to get data for
         complete_weeks = sorted(rawdb.complete_weeks())
-        newest_totals = totals.maxtime or -1
-        new_weeks = [w for w in complete_weeks if w > int(newest_totals)]
+        latest_week_in_totals = totals.maxtime_countme or -1
+        new_weeks = [w for w in complete_weeks if w > int(latest_week_in_totals)]
 
         # Count week by week
         for week in new_weeks:
             # Set up a progress meter and counter
             mon, sun = daterange(week)
             desc = f"week {week} ({mon} -- {sun})"
-            total = rawdb.week_count(week)
+            if progress:
+                total = rawdb.week_count(week)
+            else:
+                total = 1
             prog = DIYProgress(
-                total=total,
-                desc=desc,
-                disable=True if not progress else None,
-                unit="row",
-                unit_scale=False,
+                total=total, desc=desc, disable=not progress, unit="row", unit_scale=False
             )
             hitcount = Counter()
 
             # Select raw items into their buckets and count 'em up
             for bucket in rawdb.week_iter(week, select=BucketSelect):
+                hitcount[bucket] += 1
+                prog.update()
+
+            # Write the resulting totals into countme_totals
+            totals.write_items((hits,) + bucket for bucket, hits in hitcount.items())
+            prog.close()
+
+        # Now do roughly the same thing, but for Unique IPs...
+        rawdb = RawDBU(countme_raw)
+
+        # Check to see if there's any new weeks to get data for
+        complete_weeks = sorted(rawdb.complete_weeks())
+        latest_week_in_totals = totals.maxtime_unique or -1
+        new_weeks = [w for w in complete_weeks if w > int(latest_week_in_totals)]
+
+        # Count week by week
+        for week in new_weeks:
+            # Set up a progress meter and counter
+            mon, sun = daterange(week)
+            desc = f"weeku {week} ({mon} -- {sun})"
+            if progress:
+                total = rawdb.week_count(week)
+            else:
+                total = 1
+            prog = DIYProgress(
+                total=total, desc=desc, disable=not progress, unit="~ip", unit_scale=False
+            )
+            hitcount = Counter()
+
+            # Select raw items into their buckets and count 'em up
+            for bucket in rawdb.week_iter(week, select=BucketSelectUniqueIP):
                 hitcount[bucket] += 1
                 prog.update()
 
@@ -208,6 +333,6 @@ def totals(*, countme_totals, countme_raw=None, progress=False, csv_dump=None):
         writer = CSVWriter(csv_dump, CSVCountItem, timefield="week_start")
         writer.write_header()
         for item in totalreader:
-            writer.write_item(CSVCountItem.from_totalitem(item))
+            writer.write_item(CSVCountItem.from_totalsitem(item))
     else:  # pragma: no cover
         pass

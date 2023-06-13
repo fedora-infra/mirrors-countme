@@ -17,6 +17,8 @@
 
 import sqlite3
 
+from .util import MinMaxPropMixin
+
 # ===========================================================================
 # ====== SQLiteReader - counterpart to ItemWriter ============================
 # ===========================================================================
@@ -26,7 +28,7 @@ class ReaderError(RuntimeError):
     pass
 
 
-class SQLiteReader:
+class SQLiteReader(MinMaxPropMixin):
     def __init__(
         self, filename, itemtuple, tablename="countme_raw", timefield="timestamp", **kwargs
     ):
@@ -58,13 +60,3 @@ class SQLiteReader:
         fields_sql = f"PRAGMA table_info('{self._tablename}')"
         filefields = tuple(r[1] for r in self._cursor.execute(fields_sql))
         return filefields
-
-    @property
-    def mintime(self):
-        cursor = self._cursor.execute(f"SELECT MIN({self._timefield}) FROM {self._tablename}")
-        return cursor.fetchone()[0]
-
-    @property
-    def maxtime(self):
-        cursor = self._cursor.execute(f"SELECT MAX({self._timefield}) FROM {self._tablename}")
-        return cursor.fetchone()[0]
