@@ -64,9 +64,6 @@ class ItemReader:
         for item in self._iter_rows():
             yield self._itemfactory(item)
 
-    def __contains__(self, item):
-        return self._find_item(item)
-
 
 class SQLiteReader(ItemReader):
     def _get_reader(self, tablename="countme_raw", timefield="timestamp", **kwargs):
