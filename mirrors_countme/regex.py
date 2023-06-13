@@ -164,13 +164,13 @@ MIRRORS_LOG_RE = compile_log_regex(path=r"/metalink|/mirrorlist")
 # Compiled pattern for countme lines.
 # We only count:
 #   * GET requests for /metalink or /mirrorlist,
-#   * that have a query string containing "&countme=\d+",
 #   * with libdnf's User-Agent string (see above).
+# (We used to count only query strings containing "&countme=\d+", this would not let us gather
+# “traditional” unique IP statistics.)
 COUNTME_LOG_RE = compile_log_regex(
     method="GET|HEAD",
     query_present=True,
     path=r"/metalink|/mirrorlist",
-    query=r"\S+&countme=\d+\S*",
     status=r"200|302",
     user_agent=COUNTME_USER_AGENT_PATTERN,
 )

@@ -27,9 +27,12 @@ import datetime as dt
 import locale
 import math
 import sqlite3
+import sys
 import time
+from functools import partial
 
 from ..constants import COUNTME_EPOCH, WEEK_LEN
+from ..util import _get_minmaxtime
 from ..version import __version__
 
 CONF_NON_RECENT_DURATION_WEEKS = 13
@@ -77,7 +80,9 @@ def parse_args(argv=None):
     )
 
     p.add_argument(
-        "--oldest-week", action="store_true", help="Trim the oldest (full) week of data."
+        "--oldest-week",
+        action="store_true",
+        help="Trim the oldest (full) week of data.",
     )
     p.add_argument(
         "keep",
@@ -90,20 +95,29 @@ def parse_args(argv=None):
         ),
     )
 
+    p.add_argument("--unique-ip-only", action="store_true", help="Trim only the unique IP data.")
+
     args = p.parse_args(argv)
 
     return p, args
 
 
-# Mostly borrowed from mirrors_countme/__init__
-def get_mintime(connection: sqlite3.Connection):
-    cursor = connection.execute("SELECT MIN(timestamp) FROM countme_raw")
-    return cursor.fetchone()[0]
-
-
-def get_maxtime(connection: sqlite3.Connection):
-    cursor = connection.execute("SELECT MAX(timestamp) FROM countme_raw")
-    return cursor.fetchone()[0]
+get_mintime_unique = partial(
+    _get_minmaxtime,
+    minmax="min",
+    timefield="timestamp",
+    tablename="countme_raw",
+    where="sys_age < 0",
+)
+get_maxtime_unique = partial(
+    _get_minmaxtime,
+    minmax="max",
+    timefield="timestamp",
+    tablename="countme_raw",
+    where="sys_age < 0",
+)
+get_mintime = partial(_get_minmaxtime, minmax="min", timefield="timestamp", tablename="countme_raw")
+get_maxtime = partial(_get_minmaxtime, minmax="max", timefield="timestamp", tablename="countme_raw")
 
 
 # Find the next week to trim, given the earliest timestamp.
@@ -112,17 +126,34 @@ def next_week(mintime: int | float) -> int:
     return COUNTME_EPOCH + week_num * WEEK_LEN
 
 
-def _num_entries(connection: sqlite3.Connection, trim_begin: int | float, trim_end: int | float):
+def _num_entries(
+    connection: sqlite3.Connection,
+    trim_begin: int | float,
+    trim_end: int | float,
+    unique_ip_only: bool,
+):
+    end = ""
+    if unique_ip_only:
+        end = " AND sys_age < 0"
     cursor = connection.execute(
-        "SELECT COUNT(*) FROM countme_raw WHERE timestamp >= ? AND timestamp < ?",
+        "SELECT COUNT(*) FROM countme_raw WHERE timestamp >= ? AND timestamp < ?" + end,
         (trim_begin, trim_end),
     )
     return cursor.fetchone()[0]
 
 
-def _del_entries(connection: sqlite3.Connection, trim_begin: int | float, trim_end: int | float):
+def _del_entries(
+    connection: sqlite3.Connection,
+    trim_begin: int | float,
+    trim_end: int | float,
+    unique_ip_only: bool,
+):
+    end = ""
+    if unique_ip_only:
+        end = " AND sys_age < 0"
     connection.execute(
-        "DELETE FROM countme_raw WHERE timestamp >= ? AND timestamp < ?", (trim_begin, trim_end)
+        "DELETE FROM countme_raw WHERE timestamp >= ? AND timestamp < ?" + end,
+        (trim_begin, trim_end),
     )
     connection.commit()
 
@@ -133,16 +164,21 @@ def tm2ui(timestamp):
 
 
 def trim_data(
-    *, connection: sqlite3.Connection, trim_begin: int | float, trim_end: int | float, rw: bool
+    *,
+    connection: sqlite3.Connection,
+    trim_begin: int | float,
+    trim_end: int | float,
+    rw: bool,
+    unique_ip_only: bool,
 ):
-    num_affected = _num_entries(connection, trim_begin, trim_end)
+    num_affected = _num_entries(connection, trim_begin, trim_end, unique_ip_only)
     if rw:
         print(f" ** About to DELETE data from {tm2ui(trim_begin)} to {tm2ui(trim_end)}. **")
         print(f" ** This will affect {num_affected} entries. **")
         print(f" ** Interrupt within {WARN_SECONDS} seconds to prevent that. **")
         time.sleep(WARN_SECONDS)
         print(" ** DELETING data … **")
-        _del_entries(connection, trim_begin, trim_end)
+        _del_entries(connection, trim_begin, trim_end, unique_ip_only)
         print(" ** Done. **")
     else:
         print(f" ** Not deleting data from {tm2ui(trim_begin)} to {tm2ui(trim_end)}. **")
@@ -157,8 +193,16 @@ def _main():
     connection = sqlite3.connect(sqlite_uri, uri=True)
 
     # Find out what timespan is covered by data in database.
-    min_time = get_mintime(connection)
-    max_time = get_maxtime(connection)
+    if args.unique_ip_only:
+        min_time = get_mintime_unique(connection=connection)
+        max_time = get_maxtime_unique(connection=connection)
+    else:
+        min_time = get_mintime(connection=connection)
+        max_time = get_maxtime(connection=connection)
+
+    if min_time is None:
+        print(" ** There are no matching entries in the given DB. **")
+        sys.exit(0)
 
     # Calculate last monday midnight UTC in data, to be used for calculating whole week boundaries.
     last = dt.datetime.fromtimestamp(max_time, tz=dt.UTC)
@@ -172,7 +216,13 @@ def _main():
     if args.oldest_week:
         trim_end = min(next_week(trim_begin), trim_end)
 
-    trim_data(connection=connection, trim_begin=trim_begin, trim_end=trim_end, rw=args.rw)
+    trim_data(
+        connection=connection,
+        trim_begin=trim_begin,
+        trim_end=trim_end,
+        rw=args.rw,
+        unique_ip_only=args.unique_ip_only,
+    )
 
 
 def cli():
