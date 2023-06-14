@@ -96,7 +96,7 @@ def parse_args(argv=None):
     # Get matcher class for the requested matchmode
     if args.matchmode == "countme":
         args.matcher = CountmeMatcher
-    elif args.matchmode == "mirrors":
+    else:  # args.matchmode == "mirrors":
         args.matcher = MirrorMatcher
 
     # Make a writer object
@@ -123,5 +123,5 @@ def cli():
             logs=args.logs,
             progress=args.progress,
         )
-    except KeyboardInterrupt:
+    except KeyboardInterrupt:  # pragma: no cover
         raise SystemExit(3)  # sure, 3 is good, why not
