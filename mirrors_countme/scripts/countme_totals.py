@@ -22,7 +22,7 @@ def parse_args(argv=None):
         "--update-from",
         metavar="COUNTME_RAW_DB",
         dest="countme_raw",
-        help="Update totals from raw data (from ./parse-access-log.py)",
+        help="Update totals from raw data (from ./countme_parse_access_log.py)",
     )
 
     p.add_argument(
