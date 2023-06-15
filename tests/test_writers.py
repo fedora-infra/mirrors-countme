@@ -112,3 +112,27 @@ class TestCSVWriter:
         with mock.patch.object(item_writer, "_writer") as _writer:
             item_writer.write_item(item)
         _writer.writerow.assert_called_once_with(item)
+
+
+class TestAWKWriter:
+    writer_cls = writers.AWKWriter
+
+    def test__get_writer(self, item_writer):
+        # The _get_writer() method is called from __init__().
+        assert item_writer._fieldsep == "\t"
+
+    def test__write_row(self, item_writer, item_writer_file):
+        with mock.patch.object(item_writer_file, "write") as write:
+            item_writer._write_row([1, 2, "three"])
+        write.assert_called_once_with("1\t2\tthree\n")
+
+    def test_write_header(self, item_writer):
+        with mock.patch.object(item_writer, "_write_row") as _write_row:
+            item_writer.write_header()
+        _write_row.assert_called_once_with(item_writer._fields)
+
+    def test_write_item(self, item_writer):
+        item = object()
+        with mock.patch.object(item_writer, "_write_row") as _write_row:
+            item_writer.write_item(item)
+        _write_row.assert_called_once_with(item)
