@@ -1,3 +1,4 @@
+import json
 from contextlib import nullcontext
 from io import StringIO
 from typing import NamedTuple
@@ -74,3 +75,17 @@ class TestItemWriter:
     @pytest.mark.parametrize("method", ("write_header", "commit", "write_index"))
     def test_passing_methods(self, method, item_writer):
         getattr(item_writer, method)()
+
+
+class TestJSONWriter:
+    writer_cls = writers.JSONWriter
+
+    def test__get_writer(self, item_writer):
+        # The _get_writer() method is called from __init__().
+        assert item_writer._dump is json.dump
+
+    def test_write_item(self, item_writer):
+        item = mock.Mock()
+        with mock.patch.object(item_writer, "_dump") as _dump:
+            item_writer.write_item(item)
+        _dump.assert_called_once_with(item._asdict(), item_writer._fp)
