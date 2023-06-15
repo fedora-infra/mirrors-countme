@@ -104,9 +104,6 @@ def parse_args(argv=None):
         args.writer = make_writer("sqlite", args.sqlite, args.matcher.itemtuple)
     else:
         args.writer = make_writer(args.format, sys.stdout, args.matcher.itemtuple)
-
-    # No dupcheck unless we have a pre-existing sqlite database
-    if not (args.sqlite and args.sqlite.tell() > 0):
         args.dupcheck = False
 
     return args
