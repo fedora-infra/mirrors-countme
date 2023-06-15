@@ -14,8 +14,13 @@ class Boo(NamedTuple):
 
 
 @pytest.fixture
-def item_writer_file():
-    return StringIO()
+def item_writer_file(request, tmp_path):
+    if issubclass(request.instance.writer_cls, writers.SQLiteWriter):
+        # SQLiteWriter._get_writer() doesn’t cope well with StringIO and drops empty garbage files
+        # into the current directory, give it a file path instead.
+        return str(tmp_path / "test.db")
+    else:
+        return StringIO()
 
 
 @pytest.fixture
@@ -136,3 +141,113 @@ class TestAWKWriter:
         with mock.patch.object(item_writer, "_write_row") as _write_row:
             item_writer.write_item(item)
         _write_row.assert_called_once_with(item)
+
+
+class TestSQLiteWriter:
+    writer_cls = writers.SQLiteWriter
+
+    def test__sqltype(self, item_writer):
+        # Have a named tuple having attributes with SQL types as their names (spaces replaced).
+        fieldname_typehints = {
+            sqltype.replace(" ", "_"): typehint
+            for typehint, sqltype in item_writer.SQL_TYPE.items()
+        }
+        AllTypesItemTuple = NamedTuple("AllTypesItemTuple", **fieldname_typehints)
+        with mock.patch.object(item_writer, "_itemtuple", new=AllTypesItemTuple):
+            # Can’t use item_writer._fields because it’s initialited with another type.
+            for fieldname in AllTypesItemTuple._fields:
+                # This looks up field name -> field type -> SQL type, the first and last happen to
+                # be the same (modulo spaces <-> underscores), as per the above.
+                assert item_writer._sqltype(fieldname) == fieldname.replace("_", " ")
+
+    @pytest.mark.parametrize("testcase", ("fileobj", "filename"))
+    @mock.patch("mirrors_countme.writers.sqlite3")
+    def test__get_writer(self, sqlite3, testcase, tmp_path, item_writer):
+        db_path = tmp_path / "test.db"
+        if "fileobj" in testcase:
+            item_writer._fp = db_path.open("w")
+        else:
+            item_writer._fp = str(db_path)
+
+        sqlite3.connect.return_value = connection = mock.Mock()
+        connection.cursor.return_value = cursor = mock.Mock()
+
+        item_writer._get_writer(tablename="tablename")
+
+        sqlite3.connect.assert_called_once_with(f"file:{db_path}?mode=rwc", uri=True)
+        connection.cursor.assert_called_once_with()
+
+        assert item_writer._connection is connection
+        assert item_writer._cursor is cursor
+        assert item_writer._tablename == "tablename"
+
+        assert item_writer._create_table.startswith("CREATE TABLE IF NOT EXISTS tablename (")
+        assert item_writer._insert_item.startswith("INSERT INTO tablename (")
+        timefield = item_writer._timefield
+        assert item_writer._create_time_index == (
+            f"CREATE INDEX IF NOT EXISTS {timefield}_idx ON tablename ({timefield})"
+        )
+
+    def test_write_header(self, item_writer):
+        with mock.patch.object(item_writer, "_cursor") as _cursor:
+            item_writer.write_header()
+
+        _cursor.execute.assert_called_once_with(item_writer._create_table)
+
+    def test_write_item(self, item_writer):
+        item = object()
+
+        with mock.patch.object(item_writer, "_cursor") as _cursor:
+            item_writer.write_item(item)
+
+        _cursor.execute.assert_called_once_with(item_writer._insert_item, item)
+
+    def test_write_items(self, item_writer):
+        items = object()
+
+        with mock.patch.object(item_writer, "_connection") as _connection:
+            item_writer.write_items(items)
+
+        _connection.__enter__.assert_called_once()
+        _connection.__exit__.assert_called_once()
+        _connection.executemany.assert_called_once_with(item_writer._insert_item, items)
+
+    def test_commit(self, item_writer):
+        with mock.patch.object(item_writer, "_connection") as _connection:
+            item_writer.commit()
+
+        _connection.commit.assert_called_once_with()
+
+    def test_write_index(self, item_writer):
+        with mock.patch.object(item_writer, "_cursor") as _cursor, mock.patch.object(
+            item_writer, "commit"
+        ) as commit:
+            item_writer.write_index()
+
+        _cursor.execute.assert_called_once_with(item_writer._create_time_index)
+        commit.assert_called_once_with()
+
+    def test_has_item(self, item_writer):
+        item_writer._fields = ("foo", "bar")
+        item = ("sna", "fu")
+
+        with mock.patch.object(item_writer, "_cursor") as _cursor:
+            _cursor.execute.return_value.fetchone.result_value = (1,)
+            result = item_writer.has_item(item)
+
+        assert result is True
+        _cursor.execute.assert_called_once_with(
+            f"SELECT COUNT(*) FROM {item_writer._tablename} WHERE foo=? AND bar=?", item
+        )
+
+    @pytest.mark.parametrize("minmax", ("min", "max"))
+    def test_mintime_maxtime(self, minmax, item_writer):
+        expected = object()
+        with mock.patch.object(item_writer, "_cursor") as _cursor:
+            _cursor.execute.return_value.fetchone.return_value = (expected,)
+            result = getattr(item_writer, f"{minmax}time")
+
+        assert result is expected
+        _cursor.execute.assert_called_once_with(
+            f"SELECT {minmax.upper()}({item_writer._timefield}) FROM {item_writer._tablename}"
+        )

@@ -132,7 +132,7 @@ class SQLiteWriter(ItemWriter):
         # self._create_time_index creates an index on 'timestamp' or whatever
         # the time-series field is.
         self._create_time_index = (
-            "CREATE INDEX IF NOT EXISTS {timefield}_idx on {table} ({timefield})".format(
+            "CREATE INDEX IF NOT EXISTS {timefield}_idx ON {table} ({timefield})".format(
                 table=tablename, timefield=self._timefield
             )
         )
