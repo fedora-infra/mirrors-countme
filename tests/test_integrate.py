@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, List, NamedTuple
 
 import pytest
-from hypothesis import given
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
 from mirrors_countme.matchers import CountmeMatcher
@@ -153,6 +153,7 @@ def log_data(draw):
     return sorted(((date, ip, draw(repo)) for ip in ips for date in dates), key=lambda x: x[0])
 
 
+@settings(suppress_health_check=(HealthCheck.too_slow,))
 @given(loglines=log_data())
 def test_log(loglines):
     with tempfile.TemporaryDirectory() as tmp_dir:
