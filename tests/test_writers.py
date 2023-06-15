@@ -89,3 +89,26 @@ class TestJSONWriter:
         with mock.patch.object(item_writer, "_dump") as _dump:
             item_writer.write_item(item)
         _dump.assert_called_once_with(item._asdict(), item_writer._fp)
+
+
+class TestCSVWriter:
+    writer_cls = writers.CSVWriter
+
+    def test__get_writer(self, item_writer):
+        # The _get_writer() method is called from __init__(). Unfortunately, csv.writer isn’t a real
+        # type, so isinstance() fails, check for the presence of methods instead.
+        assert callable(item_writer._writer.writerow)
+        assert callable(item_writer._writer.writerows)
+
+    def test_write_header(self, item_writer):
+        # Can’t mock the methods on the writer, instead mock the whole writer.
+        with mock.patch.object(item_writer, "_writer") as _writer:
+            item_writer.write_header()
+        _writer.writerow.assert_called_once_with(item_writer._fields)
+
+    def test_write_item(self, item_writer):
+        item = object()
+        # Can’t mock the methods on the writer, instead mock the whole writer.
+        with mock.patch.object(item_writer, "_writer") as _writer:
+            item_writer.write_item(item)
+        _writer.writerow.assert_called_once_with(item)
