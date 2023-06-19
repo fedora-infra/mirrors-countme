@@ -251,3 +251,30 @@ class TestSQLiteWriter:
         _cursor.execute.assert_called_once_with(
             f"SELECT {minmax.upper()}({item_writer._timefield}) FROM {item_writer._tablename}"
         )
+
+
+@pytest.mark.parametrize("writer", ("CSV", "JSON", "AWK", "SQLite", "illegal"))
+@mock.patch("mirrors_countme.writers.SQLiteWriter")
+@mock.patch("mirrors_countme.writers.AWKWriter")
+@mock.patch("mirrors_countme.writers.JSONWriter")
+@mock.patch("mirrors_countme.writers.CSVWriter")
+def test_make_writer(CSVWriter, JSONWriter, AWKWriter, SQLiteWriter, writer):
+    writer_classes = (CSVWriter, JSONWriter, AWKWriter, SQLiteWriter)
+    if writer == "illegal":
+        expectation = pytest.raises(ValueError)
+        writer_cls = None
+    else:
+        expectation = nullcontext()
+        writer_cls = locals()[f"{writer}Writer"]
+        writer_cls.return_value = expected = object()
+
+    with expectation:
+        result = writers.make_writer(writer.lower(), "boo", bar=5)
+
+    if writer != "illegal":
+        assert result is expected
+        for cls in writer_classes:
+            if cls is writer_cls:
+                assert cls.called_once_with("boo", bar=5)
+            else:
+                assert cls.not_called()
