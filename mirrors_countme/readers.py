@@ -18,7 +18,7 @@
 import sqlite3
 
 # ===========================================================================
-# ====== ItemReaders - counterpart to ItemWriter ============================
+# ====== SQLiteReader - counterpart to ItemWriter ============================
 # ===========================================================================
 
 
@@ -26,7 +26,7 @@ class ReaderError(RuntimeError):
     pass
 
 
-class ItemReader:
+class SQLiteReader:
     def __init__(self, fp, itemtuple, **kwargs):
         self._fp = fp
         self._itemtuple = itemtuple
@@ -43,32 +43,14 @@ class ItemReader:
     def fields(self):
         return self._itemfields
 
-    def _get_reader(self):
-        """Set up the ItemReader."""
-        raise NotImplementedError
-
-    def _get_fields(self):
-        """Called immediately after _get_reader().
-        Should return a tuple of the fieldnames found in self._fp."""
-        raise NotImplementedError
-
     def _iter_rows(self):
-        """Return an iterator/generator that produces a row for each item."""
-        raise NotImplementedError
-
-    def _find_item(self, item):
-        """Return True if the given item is in this file"""
-        raise NotImplementedError
+        fields = ",".join(self._itemfields)
+        return self._cursor.execute(f"SELECT {fields} FROM {self._tablename}")
 
     def __iter__(self):
         for item in self._iter_rows():
             yield self._itemfactory(item)
 
-    def __contains__(self, item):
-        return self._find_item(item)
-
-
-class SQLiteReader(ItemReader):
     def _get_reader(self, tablename="countme_raw", timefield="timestamp", **kwargs):
         if hasattr(self._fp, "name"):
             filename = self._fp.name
@@ -85,15 +67,6 @@ class SQLiteReader(ItemReader):
         fields_sql = f"PRAGMA table_info('{self._tablename}')"
         filefields = tuple(r[1] for r in self._cursor.execute(fields_sql))
         return filefields
-
-    def _find_item(self, item):
-        condition = " AND ".join(f"{field}=?" for field in self.fields)
-        self._cursor.execute(f"SELECT COUNT(*) FROM {self._tablename} WHERE {condition}", item)
-        return bool(self._cursor.fetchone()[0])
-
-    def _iter_rows(self):
-        fields = ",".join(self._itemfields)
-        return self._cursor.execute(f"SELECT {fields} FROM {self._tablename}")
 
     @property
     def mintime(self):
