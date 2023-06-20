@@ -92,7 +92,7 @@ def weeknum2tm(weeknum):
 
 def num2ui(num):
     ret = locale.format_string("%d", num, grouping=True)
-    mlen = len("100,000,000")
+    mlen = len(locale.format_string("%d", 100000000, grouping=True))
     if len(ret) < mlen:
         ret = " " * (mlen - len(ret)) + ret
     return ret
