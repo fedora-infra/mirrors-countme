@@ -39,10 +39,6 @@ class SQLiteReader:
         if filefields != self._itemfields:
             raise ReaderError(f"field mismatch: expected {self._itemfields}, got {filefields}")
 
-    @property
-    def fields(self):
-        return self._itemfields
-
     def _iter_rows(self):
         fields = ",".join(self._itemfields)
         return self._cursor.execute(f"SELECT {fields} FROM {self._tablename}")
