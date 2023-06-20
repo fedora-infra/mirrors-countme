@@ -1,3 +1,4 @@
+import locale
 import os
 from pathlib import Path
 
@@ -17,3 +18,8 @@ def tmp_path_cwd(tmp_path):
     os.chdir(tmp_path)
     yield tmp_path
     os.chdir(old_wd)
+
+
+@pytest.fixture(autouse=True)
+def use_english_locale():
+    locale.setlocale(locale.LC_ALL, "en_US.UTF-8")
