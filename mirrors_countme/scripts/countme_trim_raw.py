@@ -82,7 +82,7 @@ def parse_args(argv=None):
     p.add_argument(
         "keep",
         metavar="KEEP",
-        type=int,
+        type=positive_int,
         nargs="?",
         default=CONF_NON_RECENT_DURATION_WEEKS,
         help=(
@@ -108,7 +108,7 @@ def get_maxtime(connection: sqlite3.Connection):
 
 # Find the next week to trim, given the earliest timestamp.
 def next_week(mintime: int | float) -> int:
-    week_num = math.ceil((mintime - COUNTME_EPOCH) / WEEK_LEN)
+    week_num = math.floor((mintime - COUNTME_EPOCH) / WEEK_LEN) + 1
     return COUNTME_EPOCH + week_num * WEEK_LEN
 
 
