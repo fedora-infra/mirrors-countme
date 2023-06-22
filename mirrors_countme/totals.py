@@ -10,7 +10,7 @@ from .constants import (
     WEEK_LEN,
 )
 from .output_items import CountmeItem
-from .progress import diyprog as Progress
+from .progress import DIYProgress
 from .readers import SQLiteReader
 from .util import weeknum
 from .writers import CSVWriter, SQLiteWriter
@@ -177,7 +177,7 @@ def totals(*, countme_totals, countme_raw=None, progress=False, csv_dump=None):
             mon, sun = daterange(week)
             desc = f"week {week} ({mon} -- {sun})"
             total = rawdb.week_count(week)
-            prog = Progress(
+            prog = DIYProgress(
                 total=total,
                 desc=desc,
                 disable=True if not progress else None,
