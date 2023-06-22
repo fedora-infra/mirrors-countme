@@ -33,6 +33,10 @@ jobs:
       - name: Mark the directory as safe for git
         run: git config --global --add safe.directory $PWD
 
+      - name: Install RPM dependencies
+        run: |
+          dnf -y install xz gzip
+
       - name: Install base Python dependencies
         run: |
           python3 -m pip install --upgrade tox
