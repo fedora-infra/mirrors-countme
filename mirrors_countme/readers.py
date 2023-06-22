@@ -27,13 +27,20 @@ class ReaderError(RuntimeError):
 
 
 class SQLiteReader:
-    def __init__(self, fp, itemtuple, **kwargs):
-        self._fp = fp
+    def __init__(
+        self, filename, itemtuple, tablename="countme_raw", timefield="timestamp", **kwargs
+    ):
+        self._filename = filename
         self._itemtuple = itemtuple
         self._itemfields = itemtuple._fields
         self._itemfactory = itemtuple._make
-        self._get_reader(**kwargs)
+        self._tablename = tablename
+        self._timefield = timefield
+        # self._connection = sqlite3.connect(f"file:{filename}?mode=ro", uri=True)
+        self._connection = sqlite3.connect(self._filename)
+        self._cursor = self._connection.cursor()
         filefields = self._get_fields()
+
         if not filefields:
             raise ReaderError("no field names found")
         if filefields != self._itemfields:
@@ -46,18 +53,6 @@ class SQLiteReader:
     def __iter__(self):
         for item in self._iter_rows():
             yield self._itemfactory(item)
-
-    def _get_reader(self, tablename="countme_raw", timefield="timestamp", **kwargs):
-        if hasattr(self._fp, "name"):
-            filename = self._fp.name
-        else:
-            filename = self._fp
-        # self._connection = sqlite3.connect(f"file:{filename}?mode=ro", uri=True)
-        self._connection = sqlite3.connect(filename)
-        self._cursor = self._connection.cursor()
-        self._tablename = tablename
-        self._timefield = timefield
-        self._filename = filename
 
     def _get_fields(self):
         fields_sql = f"PRAGMA table_info('{self._tablename}')"
