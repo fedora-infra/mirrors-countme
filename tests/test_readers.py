@@ -34,8 +34,8 @@ class TestSQLiteReader:
             expectation = nullcontext()
 
         with expectation as exc_info, mock.patch.object(
-            readers.SQLiteReader, "_get_reader"
-        ) as _get_reader, mock.patch.object(readers.SQLiteReader, "_get_fields") as _get_fields:
+            readers.SQLiteReader, "_get_fields"
+        ) as _get_fields:
             match testcase:
                 case "happy-path":
                     _get_fields.return_value = ItemTuple._fields
@@ -48,11 +48,10 @@ class TestSQLiteReader:
 
         match testcase:
             case "happy-path":
-                assert item_reader._fp == item_reader_file
+                assert item_reader._filename == item_reader_file
                 assert item_reader._itemtuple == ItemTuple
                 assert item_reader._itemfields == ItemTuple._fields
                 assert item_reader._itemfactory == ItemTuple._make
-                _get_reader.assert_called_once_with(foo="bar")
                 _get_fields.assert_called_once_with()
             case "no-filefields":
                 assert str(exc_info.value) == "no field names found"
@@ -69,11 +68,3 @@ class TestSQLiteReader:
             _cursor.execute.assert_called_once_with(
                 f"SELECT {fields} FROM {item_reader._tablename}"
             )
-
-    def test_has_attr(self, item_reader_file):
-        with mock.patch.object(readers.SQLiteReader, "_get_fields") as get_fields, open(
-            item_reader_file, "w+"
-        ) as obj:
-            get_fields.return_value = ItemTuple._fields
-            reader = readers.SQLiteReader(obj, ItemTuple, foo="moo")
-            assert reader._filename == obj.name

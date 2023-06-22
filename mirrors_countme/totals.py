@@ -115,8 +115,8 @@ class CSVCountItem(NamedTuple):
 
 
 class RawDB(SQLiteReader):
-    def __init__(self, fp, **kwargs):
-        super().__init__(fp, CountmeItem, tablename="countme_raw", **kwargs)
+    def __init__(self, filename, **kwargs):
+        super().__init__(filename, CountmeItem, tablename="countme_raw", **kwargs)
 
     def complete_weeks(self):
         """Return a range(startweek, provweek) that covers (valid + complete)
