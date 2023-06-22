@@ -26,8 +26,8 @@ import sys
 from .regex import LOG_DATE_RE
 
 __all__ = (
+    "DIYProgress",
     "ReadProgress",
-    "DIYReadProgress",
 )
 
 # ===========================================================================
@@ -80,47 +80,7 @@ def log_total_size(logfn):
         return os.stat(logfn).st_size
 
 
-class ReadProgressBase:
-    def __init__(self, logs, display=True):
-        """logs should be a sequence of line-iterable file-like objects.
-        if display is False, no progress output will be printed."""
-        self.logs = logs
-        self.display = display
-
-    def __iter__(self):
-        """Iterator for ReadProgress; yields a sequence of line-iterable
-        file-like objects (one for each log in logs)."""
-        for num, logfn in enumerate(self.logs):
-            logf = log_reader(logfn)
-            total = log_total_size(logfn)
-            yield self._iter_log_lines(logf, num, total)
-
-    def _iter_log_lines(self, logf, num, total):
-        # Make a progress meter for this file
-        prog = self._progress_obj(
-            unit="b",
-            unit_scale=True,
-            total=total,
-            disable=not self.display or not total,
-        )
-
-        for i, line in enumerate(logf):
-            if i == 0:
-                # Set log date from first processed line
-                desc = f"log {num+1}/{len(self.logs)}, date={log_date(line)}"
-                prog.set_description(desc)
-            prog.update(len(line))
-            yield line
-        prog.close()
-
-
-# No TQDM? Use our little do-it-yourself knockoff version.
-class DIYReadProgress(ReadProgressBase):
-    def _progress_obj(self, *args, **kwargs):
-        return diyprog(*args, **kwargs)
-
-
-class diyprog:
+class DIYProgress:
     def __init__(
         self,
         desc=None,
@@ -131,7 +91,6 @@ class diyprog:
         unit_scale=True,
         barchar="_-=#",
     ):
-        # COMPAT NOTE: tqdm objects with disable=True have no .desc attribute
         self.desc = desc
         self.total = total
         self.file = sys.stderr if file is None else file
@@ -194,4 +153,38 @@ class diyprog:
         print(flush=True, file=self.file)
 
 
-ReadProgress = DIYReadProgress
+class ReadProgress:
+    def __init__(self, logs, display=True):
+        """logs should be a sequence of line-iterable file-like objects.
+        if display is False, no progress output will be printed."""
+        self.logs = logs
+        self.display = display
+
+    def __iter__(self):
+        """Iterator for ReadProgress; yields a sequence of line-iterable
+        file-like objects (one for each log in logs)."""
+        for num, logfn in enumerate(self.logs):
+            logf = log_reader(logfn)
+            total = log_total_size(logfn)
+            yield self._iter_log_lines(logf, num, total)
+
+    def _progress_obj(self, *args, **kwargs):
+        return DIYProgress(*args, **kwargs)
+
+    def _iter_log_lines(self, logf, num, total):
+        # Make a progress meter for this file
+        prog = self._progress_obj(
+            unit="b",
+            unit_scale=True,
+            total=total,
+            disable=not self.display or not total,
+        )
+
+        for i, line in enumerate(logf):
+            if i == 0:
+                # Set log date from first processed line
+                desc = f"log {num+1}/{len(self.logs)}, date={log_date(line)}"
+                prog.set_description(desc)
+            prog.update(len(line))
+            yield line
+        prog.close()
