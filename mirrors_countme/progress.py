@@ -60,6 +60,7 @@ def xz_log_size(xz_filename):
         f = line.split(b"\t")
         if f[0] == b"totals":
             return int(f[4])
+    return None  # pragma: no cover
 
 
 def gz_log_size(gz_filename):
@@ -77,7 +78,10 @@ def log_total_size(logfn):
     elif logfn.endswith(".gz"):
         return gz_log_size(logfn)
     else:
-        return os.stat(logfn).st_size
+        try:
+            return os.stat(logfn).st_size
+        except Exception:
+            return None
 
 
 class DIYProgress:
@@ -121,10 +125,13 @@ class DIYProgress:
 
     @staticmethod
     def hrsize(n):
-        for suffix in "kmgtp":
-            n /= 1000
+        for suffix in " kmgtp":
             if n < 1000:
                 break
+            if suffix != "p":
+                n /= 1000
+        if suffix == " ":
+            suffix = ""
         return f"{n:.1f}{suffix}"
 
     def display(self):
