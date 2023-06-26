@@ -12,7 +12,13 @@ authors = [
 ]
 license = "GPL-3.0-or-later"
 readme = "README.md"
-packages = [{include = "mirrors_countme"}]
+packages = [
+    { include = "mirrors_countme" },
+]
+include = [
+    { path = "scripts/*.sh", format = "sdist" },
+    { path = "tests", format = "sdist" },
+]
 
 [tool.poetry.dependencies]
 python = "^3.11"
