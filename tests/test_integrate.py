@@ -153,7 +153,7 @@ def log_data(draw):
     return sorted(((date, ip, draw(repo)) for ip in ips for date in dates), key=lambda x: x[0])
 
 
-@settings(suppress_health_check=(HealthCheck.too_slow,))
+@settings(suppress_health_check=(HealthCheck.too_slow,), deadline=datetime.timedelta(seconds=1))
 @given(loglines=log_data())
 def test_log(loglines):
     with tempfile.TemporaryDirectory() as tmp_dir:
