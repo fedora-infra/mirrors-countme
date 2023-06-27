@@ -15,6 +15,7 @@
 #
 # Author: Will Woods <wwoods@redhat.com>
 
+import sys
 from typing import Type
 
 from .output_items import CountmeItem, MirrorItem
@@ -37,7 +38,11 @@ class LogMatcher:
         for line in self.fileobj:
             match = self.regex.match(line)
             if match:
-                yield self.make_item(match)
+                try:
+                    yield self.make_item(match)
+                except Exception:
+                    # Paper over any conversion errors
+                    print(f"IGNORING MALFORMED LINE: {line!r}", file=sys.stderr)
 
     __iter__ = iteritems
 
