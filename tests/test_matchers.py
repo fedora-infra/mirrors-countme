@@ -19,16 +19,21 @@ class InTestMatcher(matchers.LogMatcher):
 
     @classmethod
     def make_item(cls, match):
-        return cls.itemtuple(before=match["before"], after=match["after"])
+        before = match["before"]
+        after = match["after"]
+        if before and "trip" in before or after and "trip" in after:
+            raise ValueError("it made me trip!")
+        return cls.itemtuple(before=before, after=after)
 
 
 class TestLogMatcher:
-    def test_iter(self):
+    def test_iter(self, capsys):
         fileobj = StringIO(
             """
             this matches
             this doesn’t match
             and this matches again
+            and this matches but makes make_item() trip
             """
         )
         matcher = InTestMatcher(fileobj)
@@ -37,6 +42,11 @@ class TestLogMatcher:
             InTestItem(before="this", after=None),
             InTestItem(before="and this", after="again"),
         ]
+
+        _, stderr = capsys.readouterr()
+        assert re.match(
+            r"^IGNORING MALFORMED LINE: '\s*and this matches but makes make_item\(\) trip", stderr
+        )
 
     def test_make_item(self):
         with pytest.raises(NotImplementedError):
