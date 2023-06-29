@@ -68,3 +68,31 @@ class TestSQLiteReader:
             _cursor.execute.assert_called_once_with(
                 f"SELECT {fields} FROM {item_reader._tablename}"
             )
+
+    def test___iter__(self, item_reader):
+        with mock.patch.object(item_reader, "_iter_rows") as _iter_rows, mock.patch.object(
+            item_reader, "_itemfactory"
+        ) as _itemfactory:
+            iter_rows = [f"iter_row {i}" for i in range(10)]
+            _iter_rows.return_value = iter(iter_rows)
+            _itemfactory.side_effect = lambda item: f"_itemfactory({item})"
+
+            result = list(iter(item_reader))
+
+            assert result == [f"_itemfactory({item})" for item in iter_rows]
+
+    def test__get_fields(self, item_reader):
+        # The item_reader fixture normally shortcuts _get_fields() completely, but we want to be
+        # able to test it, so "unmock" the method and only mock out the DB cursor.
+        with mock.patch.object(
+            item_reader,
+            "_get_fields",
+            wraps=lambda: readers.SQLiteReader._get_fields(item_reader),
+        ), mock.patch.object(item_reader, "_cursor") as _cursor:
+            _cursor.execute.return_value = [
+                (i, fname) for i, fname in enumerate(item_reader._itemfields)
+            ]
+            result = item_reader._get_fields()
+
+        assert result == item_reader._itemfields
+        _cursor.execute.assert_called_once_with(f"PRAGMA table_info('{item_reader._tablename}')")
