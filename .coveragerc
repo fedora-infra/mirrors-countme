@@ -4,7 +4,7 @@ source = mirrors_countme
 
 [report]
 precision = 2
-#fail_under = 99
+fail_under = 100
 exclude_lines =
     pragma: no cover
     def __repr__
