@@ -6,7 +6,7 @@ from contextlib import nullcontext
 from unittest import mock
 
 import pytest
-from hypothesis import given
+from hypothesis import example, given
 from hypothesis.strategies import integers
 
 from mirrors_countme import progress
@@ -239,6 +239,8 @@ class TestDIYProgress:
 
     @pytest.mark.parametrize("unit_scale", (True, False), ids=("scaled", "unscaled"))
     @given(count=integers(min_value=0, max_value=TEST_TOTAL))
+    @example(count=0)
+    @example(count=TEST_TOTAL)
     def test_display(self, unit_scale, count):
         obj = progress.DIYProgress(desc="Test", total=self.TEST_TOTAL, unit_scale=unit_scale)
         obj.count = count
