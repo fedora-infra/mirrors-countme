@@ -9,6 +9,8 @@ authors = [
     "Patrik Polakovič <patrik@alphamail.org>",
     "Nils Philippsen <nils@redhat.com>",
     "James Antill <james@and.org>",
+    "Lenka Segura <lsegura@redhat.com>",
+    "Pedro Moura <pmoura@redhat.com>",
 ]
 maintainers = [
     "Fedora Infrastructure <admin@fedoraproject.org>",
