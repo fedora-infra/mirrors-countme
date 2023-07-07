@@ -275,6 +275,6 @@ def test_make_writer(CSVWriter, JSONWriter, AWKWriter, SQLiteWriter, writer):
         assert result is expected
         for cls in writer_classes:
             if cls is writer_cls:
-                assert cls.called_once_with("boo", bar=5)
+                cls.assert_called_once_with("boo", bar=5)
             else:
-                assert cls.not_called()
+                cls.assert_not_called()

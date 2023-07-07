@@ -181,7 +181,7 @@ class TestRawDBU(TestRawDB):
 
         assert result is sentinel
         start_ts = weeknum * WEEK_LEN + COUNTME_EPOCH
-        assert SplitWeekDays.called_once_with(rawdb, start_ts, select)
+        SplitWeekDays.assert_called_once_with(rawdb, start_ts, select)
 
     def test_week_count(self, rawdb):
         weeknum = 23
