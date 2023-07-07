@@ -58,7 +58,7 @@ for month in $months; do
     if [ -f ${logfile}* ]; then
       if $conf_RW; then
         imported=true
-        parse-access-log.py $conf_progress --sqlite ${rawdb} ${logfile}*
+        countme-parse-access-log $conf_progress --sqlite ${rawdb} ${logfile}*
       else
 	ls -asF ${logfile}*
       fi

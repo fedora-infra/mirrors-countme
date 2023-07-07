@@ -6,7 +6,7 @@
 ###
 
 # Constants and paths
-COUNTCMD="countme-totals.py"
+COUNTCMD="countme-totals"
 OUTPUT_DIR="/var/lib/countme"
 
 DEFAULT_RAWDB="$OUTPUT_DIR/raw.db"

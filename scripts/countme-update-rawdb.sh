@@ -10,7 +10,7 @@ F32_BRANCH="2020-02-11"      # Fedora 32 is where we turned 'countme' on
 MIN_LOG_TIMESTAMP=1581379200 # Timestamp for F32_BRANCH
 LOG_JITTER_WINDOW=600        # A safe window for out-of-order log entries
 
-PARSECMD="parse-access-log.py"
+PARSECMD="countme-parse-access-log"
 STATS_MOUNT="/mnt/fedora_stats"
 OUTPUT_DIR="/var/lib/countme"
 
@@ -70,8 +70,8 @@ rawdb_lastlog_date() {
 # ending just after midnight the next day. So the highest timestamp _usually_
 # lands on the day corresponding to the date of the file - but not always.
 # We add a fudge factor to the timestamp so it's more likely to land on the
-# proper day, but if that fails, parse-access-log.py also checks if the first
-# item in each log is already in the database, and skips that log if so.
+# proper day, but if that fails, countme-parse-access-log also checks if the
+# first item in each log is already in the database, and skips that log if so.
 
 
 ###
