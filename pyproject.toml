@@ -10,6 +10,9 @@ authors = [
     "Nils Philippsen <nils@redhat.com>",
     "James Antill <james@and.org>",
 ]
+maintainers = [
+    "Fedora Infrastructure <admin@fedoraproject.org>",
+]
 license = "GPL-3.0-or-later"
 readme = "README.md"
 packages = [
