@@ -4,11 +4,13 @@ from unittest import mock
 
 import pytest
 from hypothesis import given
-from hypothesis.strategies import datetimes, integers, just
+from hypothesis.strategies import integers
 
 from mirrors_countme import constants
 from mirrors_countme.scripts import countme_trim_raw
 from mirrors_countme.version import __version__
+
+from ..common import MAX_TIMESTAMP
 
 NOW_TIMESTAMP = int(dt.datetime.utcnow().timestamp())
 
@@ -158,9 +160,10 @@ def test__del_entries(unique_ip_only):
     connection.commit.assert_called_once_with()
 
 
-@given(dt_value=datetimes(timezones=just(dt.UTC), allow_imaginary=False))
-def test_tm2ui(dt_value):
-    result = countme_trim_raw.tm2ui(dt_value.timestamp())
+@given(timestamp=integers(min_value=0, max_value=MAX_TIMESTAMP))
+def test_tm2ui(timestamp):
+    dt_value = dt.datetime.utcfromtimestamp(timestamp).replace(tzinfo=dt.UTC)
+    result = countme_trim_raw.tm2ui(timestamp)
     assert result == dt_value.date().isoformat()
 
 

@@ -5,9 +5,7 @@ from hypothesis.strategies import integers
 
 from mirrors_countme import output_items
 
-# Yeah, hardcoding is ugh, but there doesn’t seem to be a portable way to determine this during
-# runtime, and 2**31 throws an OverflowError on Fedora 37.
-MAX_TIMESTAMP = 2**31 - 1
+from .common import MAX_TIMESTAMP
 
 
 class TestLogItem:
