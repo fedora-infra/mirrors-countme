@@ -68,7 +68,7 @@ def test_log_reader(filetype):
     assert result is result_sentinel
     for open_fn in (lzma.open, gzip.open, open):
         if open_fn is fn:
-            open_fn.assert_called_once_with(filename, mode="rt")
+            open_fn.assert_called_once_with(filename, mode="rt", errors="replace")
         else:
             open_fn.assert_not_called()
 
