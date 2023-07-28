@@ -44,11 +44,11 @@ def log_date(line):
 
 def log_reader(logfn):
     if logfn.endswith(".xz"):
-        return lzma.open(logfn, mode="rt")
+        return lzma.open(logfn, mode="rt", errors="replace")
     elif logfn.endswith(".gz"):
-        return gzip.open(logfn, mode="rt")
+        return gzip.open(logfn, mode="rt", errors="replace")
     else:
-        return open(logfn, mode="rt")
+        return open(logfn, mode="rt", errors="replace")
 
 
 def xz_log_size(xz_filename):
