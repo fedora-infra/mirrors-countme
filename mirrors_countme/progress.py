@@ -144,7 +144,7 @@ class DIYProgress:
             count = str(self.count) + unit
             total = str(self.total) + unit
         pct = (self.count * 100) // self.total
-        bar = (pct // 4) * self.barchar[-1]
+        bar = (min(pct, 100) // 4) * self.barchar[-1]
         if pct < 100:
             bar += self.barchar[pct % 4]
         print(
