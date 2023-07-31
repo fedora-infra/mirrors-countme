@@ -238,9 +238,10 @@ class TestDIYProgress:
             assert result == "12345.6p"
 
     @pytest.mark.parametrize("unit_scale", (True, False), ids=("scaled", "unscaled"))
-    @given(count=integers(min_value=0, max_value=TEST_TOTAL))
-    @example(count=0)
-    @example(count=TEST_TOTAL)
+    @given(count=integers(min_value=0, max_value=int(TEST_TOTAL * 1.01 + 1)))
+    @example(count=0)  # 0%
+    @example(count=TEST_TOTAL)  # 100%
+    @example(count=int(TEST_TOTAL * 1.01 + 1))  # >= 101%
     def test_display(self, unit_scale, count):
         obj = progress.DIYProgress(desc="Test", total=self.TEST_TOTAL, unit_scale=unit_scale)
         obj.count = count
@@ -270,7 +271,7 @@ class TestDIYProgress:
         #####################
 
         pct = (count * 100) // self.TEST_TOTAL
-        num_leading_hashes = pct // 4
+        num_leading_hashes = min(pct, 100) // 4
         expected_tail = "_-=#"[pct % 4]
         num_spaces = 25 - 1 - num_leading_hashes
         assert int(groups["pct"]) == pct
