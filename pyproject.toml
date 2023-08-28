@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mirrors-countme"
-version = "0.1.1"
+version = "0.1.2"
 description = "Parse access logs and count hosts for DNF mirrors"
 authors = [
     "Will Woods",
