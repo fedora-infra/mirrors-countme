@@ -13,14 +13,18 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install absolufy
+      - name: Install absolufy and poetry
         run: |
-          python3 -m pip install absolufy-imports
+          python3 -m pip install absolufy-imports poetry
 
       - name: Enforce relative imports in package
         run: >
           find mirrors_countme -name \*.py -print0
           | xargs -0 absolufy-imports --never
+
+      - name: Check Poetry lock file consistency
+        run: >
+          poetry lock --check
 
   backend-ci:
     strategy:
@@ -35,7 +39,7 @@ jobs:
 
       - name: Install RPM dependencies
         run: |
-          dnf -y install xz gzip
+          dnf -y install coreutils xz gzip
 
       - name: Install base Python dependencies
         run: |
@@ -45,5 +49,5 @@ jobs:
         run: |
           dnf install -y glibc-langpack-en
 
-      - name: execute tox
-        run: tox
+      - name: run tests through tox
+        run: tox -e $(tox -l | grep '^py[0-9]' | paste -sd , -)
