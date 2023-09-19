@@ -128,6 +128,8 @@ class CSVCountItem(NamedTuple):
 
 
 class RawDB(SQLiteReader):
+    START_WEEKNUM = COUNTME_START_WEEKNUM
+
     def __init__(self, filename, **kwargs):
         super().__init__(filename, CountmeItem, tablename="countme_raw", **kwargs)
 
@@ -149,11 +151,11 @@ class RawDB(SQLiteReader):
         if self.mintime is None:
             return []
         # startweek can't be earlier than the first week of data
-        startweek = max(weeknum(self.mintime), COUNTME_START_WEEKNUM)
+        startweek = max(weeknum(self.mintime), self.START_WEEKNUM)
         # A week is provisional until the LOG_JITTER_WINDOW expires, so once
         # tsmax minus LOG_JITTER_WINDOW ticks over into a new weeknum, that
         # weeknum is the provisional one. So...
-        provweek = max(weeknum(self.maxtime - LOG_JITTER_WINDOW), COUNTME_START_WEEKNUM)
+        provweek = max(weeknum(self.maxtime - LOG_JITTER_WINDOW), self.START_WEEKNUM)
         return range(startweek, provweek)
 
     def week_iter(self, weeknum, select: tuple | list):
@@ -172,6 +174,8 @@ class RawDB(SQLiteReader):
 
 
 class RawDBU(RawDB):
+    START_WEEKNUM = 0
+
     def __init__(self, fp, **kwargs):
         super().__init__(fp, **kwargs)
 

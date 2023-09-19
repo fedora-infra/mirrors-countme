@@ -87,7 +87,7 @@ LOG_PATTERN_FIELDS = {
     "user_agent": ".+?",
 }
 
-# A regex for libdnf/rpm-ostree user-agent strings.
+# A regex for optional libdnf/rpm-ostree user-agent strings.
 # Examples:
 #   "libdnf/0.35.5 (Fedora 32; workstation; Linux.x86_64)"
 #   "libdnf (Fedora 32; generic; Linux.x86_64)"
@@ -116,7 +116,7 @@ COUNTME_USER_AGENT_PATTERN = (
     r"(?P<os_variant>[0-9a-z._-]*);\s"
     r"(?P<os_canon>[\w./]+)\."
     r"(?P<os_arch>\w+)"
-    r"\)"
+    r'\)|[^"]*'
 )
 COUNTME_USER_AGENT_RE = re.compile(COUNTME_USER_AGENT_PATTERN)
 LIBDNF_USER_AGENT_RE = re.compile(COUNTME_USER_AGENT_PATTERN)

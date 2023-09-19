@@ -3,8 +3,31 @@ from itertools import chain, repeat
 from unittest import mock
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
-from mirrors_countme.parse import parse, parse_from_iterator
+from mirrors_countme.parse import _convert_none_members, parse, parse_from_iterator
+
+
+@given(
+    values_tuple=st.one_of(
+        st.tuples(),
+        st.tuples(
+            *(
+                st.one_of(
+                    st.nothing(),
+                    st.one_of(st.none(), st.text()),
+                )
+                for items in range(3)
+            )
+        ),
+    )
+)
+def test__convert_none_members(values_tuple):
+    input_iterables = iter([values_tuple])
+    expected_result = tuple("" if val is None else val for val in values_tuple)
+
+    assert list(_convert_none_members(input_iterables))[0] == expected_result
 
 
 @pytest.mark.parametrize(
