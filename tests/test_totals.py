@@ -10,7 +10,6 @@ from mirrors_countme import totals, util
 from mirrors_countme.constants import (
     COUNTME_EPOCH,
     COUNTME_EPOCH_ORDINAL,
-    COUNTME_START_WEEKNUM,
     LOG_JITTER_WINDOW,
     WEEK_LEN,
 )
@@ -132,9 +131,9 @@ class TestRawDB:
         if mintime is None:
             assert result == []
         else:
-            assert result.start == max(util.weeknum(mintime), COUNTME_START_WEEKNUM)
+            assert result.start == max(util.weeknum(mintime), self.cls.START_WEEKNUM)
             assert result.stop == max(
-                util.weeknum(maxtime - LOG_JITTER_WINDOW), COUNTME_START_WEEKNUM
+                util.weeknum(maxtime - LOG_JITTER_WINDOW), self.cls.START_WEEKNUM
             )
 
     def test_week_iter(self, rawdb):

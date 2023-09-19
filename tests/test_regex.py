@@ -85,7 +85,7 @@ COUNTME_USER_AGENT_RE_INPUTS_RESULTS = [
 ]
 
 
-COUNTME_USER_AGENT_RE_INVALID_INPUTS = [
+COUNTME_USER_AGENT_RE_NULL_INPUTS = [
     (
         r"16.160.95.167 - - [31/May/2021:00:00:02 +0000] "
         r'"GET /badpath?repo=epel-8&arch=x86_64&infra=stock&content=almalinux&countme=2 HTTP/1.1" '
@@ -101,10 +101,12 @@ def test_countme_user_agent_re(test_case):
     assert groups == expected_output
 
 
-@pytest.mark.parametrize("test_case", COUNTME_USER_AGENT_RE_INVALID_INPUTS)
+@pytest.mark.parametrize("test_case", COUNTME_USER_AGENT_RE_NULL_INPUTS)
 def test_countme_user_agent_re_invalid(test_case):
-    invalid_input = test_case
-    assert COUNTME_USER_AGENT_RE.match(invalid_input) is None
+    null_input = test_case
+    groupvals = COUNTME_USER_AGENT_RE.match(null_input).groups()
+    assert len(groupvals)
+    assert all(groupval is None for groupval in groupvals)
 
 
 LOG_DATE_RE_INPUTS_RESULTS = [

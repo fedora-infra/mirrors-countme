@@ -1,6 +1,19 @@
 from .progress import ReadProgress
 
 
+# Given a match iter, we replace the None values with ""
+def _convert_none_members(miter):
+    for item in miter:
+        if None in item:
+            n = []
+            for val in item:
+                if val is None:
+                    val = ""
+                n.append(val)
+            item = tuple(n)
+        yield item
+
+
 def parse_from_iterator(
     logfiles,
     *,
@@ -22,9 +35,9 @@ def parse_from_iterator(
         # Make an iterator object for the matching log lines
         match_iter = iter(matcher(logf))
 
-        # TEMP WORKAROUND: filter out match items with missing values
+        # WORKAROUND: filter or blank out match items with missing values
         if matchmode == "countme":
-            match_iter = (i for i in match_iter if None not in i)
+            match_iter = _convert_none_members(match_iter)
 
         if dupcheck:
             # Duplicate data check (for sqlite output)

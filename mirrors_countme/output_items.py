@@ -68,7 +68,8 @@ class MirrorItem(NamedTuple):
 class CountmeItem(NamedTuple):
     """
     A "countme" match item.
-    Includes the countme value and libdnf User-Agent fields.
+    Includes the countme value and libdnf User-Agent fields, can blank missing data
+    so we can log old data.
     """
 
     timestamp: int
