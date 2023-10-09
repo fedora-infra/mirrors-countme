@@ -48,7 +48,7 @@ locale.setlocale(locale.LC_ALL, "")
 def positive_int(value):
     value = int(value)
     if value < 1:
-        raise ValueError("Value must be > 1")
+        raise ValueError("Value must be >= 1")
     return value
 
 
