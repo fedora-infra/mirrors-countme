@@ -1,0 +1,92 @@
+#! /bin/sh -e
+
+#  We "gzip" a file X into X.gz leaving the original, then later we'll rezip
+# it when X changes and leave X.gz alone when it doesn't change. We don't
+# test mtime's.
+
+# Usage: rezip X Y Z
+
+# ... afterwards X.gz Y.gz and Z.gz will exist.
+
+# Arguments:
+#        --bzip2 = Use bzip2 for compression.
+#        --gzip  = Use gzip for compression. (default)
+#        --xz    = Use xz for compression.
+#        --lzma  = Use lzma for compression
+#        -f
+#        --force = Always create the new compressed file.
+
+
+conf_C=gzip
+conf_TST=true
+
+# Copy permissions ... without --reference=
+function cp_perms {
+#     chmod --reference="$1" "${@:2}"
+    perms=$(ls -l $1 | cut -c2-10)
+    uperms=$(echo $perms | cut -c1-3)
+    gperms=$(echo $perms | cut -c4-6)
+    operms=$(echo $perms | cut -c7-)
+    chmod "u=$uperms,g=$gperms,o=$operms" "${@:2}"
+}
+
+# CMP $1 vs. $2 ... if they are different: mv $1 $2, if not: rm -f $1
+function cmp_mv_rm {
+    rename=true
+    exists=false
+    if [ -f "$2" ]; then
+        exists=true
+    fi
+
+    if $conf_TST && $exists; then
+        if cmp -s "$1" "$2"; then
+            rename=false
+        fi
+    fi
+
+
+    if $rename; then
+        $exists && cp_perms "$2" "$1"
+
+        mv "$1" "$2"
+    else
+        rm -f -- "$1"
+    fi
+}
+
+
+function rezip {
+    tmpfile=$(mktemp $(dirname "$1")/rezip.XXXXXX)
+    trap 'rm -f -- "$tmpfile"' INT TERM HUP EXIT
+
+    case "${conf_C}" in
+        bzip2) ext="bz2"; cmd="bzip2 --stdout --best";;
+        gzip)  ext="gz";  cmd="gzip  --to-stdout --no-name --best";;
+        lzma)  ext="lzma";cmd="xz --stdout --best --format=lzma";;
+        xz)    ext="xz";  cmd="xz --stdout --best";;
+    esac
+
+    $cmd "$1" > "$tmpfile"
+
+    cp_perms "$1" "$tmpfile"
+    cmp_mv_rm "$tmpfile" "$1.$ext"
+
+    trap - INT TERM HUP EXIT
+}
+
+for flag in "$@"
+do
+    case "${flag}" in
+        --bzip2) conf_C=bzip2;;
+        --gzip)  conf_C=gzip;;
+        --xz)    conf_C=xz;;
+        --lzma)  conf_C=lzma;;
+        -f | \
+        --force) conf_TST=false;;
+
+        *)
+            rezip $flag
+    esac
+done
+
+
