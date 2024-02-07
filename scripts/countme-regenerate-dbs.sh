@@ -19,6 +19,8 @@ else
     conf_LOGNAME="mirrors.fedoraproject.org-access.log"
     suffix=""
 fi
+conf_MONTH=1
+conf_DAY=1
 
 if $conf_JAMES; then
     _james=/home/fedora/james/mirrors-countme
@@ -46,6 +48,12 @@ _cur_year="$(date +'%Y')"
 oneyear=false
 if [ "x$1" != "x" ]; then
     conf_YEAR="$1"
+    oneyear=true
+    conf_DEL=false
+fi
+
+if [ "x$2" != "x" ]; then
+    conf_MONTH="$2"
     oneyear=true
     conf_DEL=false
 fi
@@ -103,29 +111,41 @@ while [ $num -le $_cur_year ]; do
     if [ -f ${rawdb} ]; then
         # sqlite3 ${rawdb} 'VACUUM;'
         # Do a super VACUUM every year, including to start with...
-        superVacuum
+        # echo "Super VACUUM"
+        # superVacuum
+        echo ""
     fi
 
 
     for month in $(seq -w 12); do
-        ran=false
-        for day in $(seq -w 31); do
-            fn="$conf_LOGDIR/$num/$month/$day/$conf_LOGNAME"
-            if [ -f ${fn}* ]; then
-                ran=true
-                if [ "x$conf_progress" = "x" ]; then
-                    echo "Day: $num/$month/$day"
+        if [ $conf_MONTH -gt $month ]; then
+            echo "Skip: $num/$month"
+        else
+            conf_MONTH=1
+            ran=false
+            for day in $(seq -w 31); do
+                if [ $conf_DAY -gt $day ]; then
+                    echo "Skip: $num/$month/$day"
+                else
+                    fn="$conf_LOGDIR/$num/$month/$day/$conf_LOGNAME"
+                    if [ -f ${fn}* ]; then
+                        ran=true
+                        if [ "x$conf_progress" = "x" ]; then
+                            echo "Day: $num/$month/$day"
+                        fi
+                        $cmd_cpa  $conf_progress --sqlite ${rawdb} ${fn}*
+                    fi
                 fi
-                $cmd_cpa  $conf_progress --sqlite ${rawdb} ${fn}*
-            fi
-        done
+            done
 
-        if $ran; then
-            echo "Doing monthly totals/cleanup: $num/$month"
-            $cmd_cut --rawdb ${rawdb} --totals-db ${totsdb} $conf_progress
-            $cmd_ctr --rw ${rawdb} 1
-            echo "VACUUM"
-            sqlite3 ${rawdb} 'VACUUM;'
+            if $ran; then
+                echo "Doing monthly totals/cleanup: $num/$month"
+                $cmd_cut --rawdb ${rawdb} --totals-db ${totsdb} $conf_progress
+                $cmd_ctr --rw ${rawdb} 1
+                echo "Super VACUUM"
+                superVacuum
+                # sqlite3 ${rawdb} 'VACUUM;'
+            fi
         fi
     done
 
