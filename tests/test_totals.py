@@ -114,9 +114,11 @@ class TestRawDB:
             minmaxtime_prop.return_value = sentinel = object()
             assert getattr(rawdb, propname) is sentinel
 
-    @settings(suppress_health_check=(HealthCheck.function_scoped_fixture,))
-    @given(data=data())
-    def test_complete_weeks(self, data, rawdb):
+    # Hypothesis needs each "executor" (here: test class) to get its own set of @given input data.
+    # Put the actual test into its own method which can be called from wrappers in either base and
+    # subclass.
+
+    def _test_complete_weeks(self, data, rawdb):
         mintime = data.draw(one_of(integers(min_value=COUNTME_EPOCH_ORDINAL), none()))
         if mintime is not None:
             maxtime = data.draw(integers(min_value=mintime))
@@ -135,6 +137,11 @@ class TestRawDB:
             assert result.stop == max(
                 util.weeknum(maxtime - LOG_JITTER_WINDOW), self.cls.START_WEEKNUM
             )
+
+    @settings(suppress_health_check=(HealthCheck.function_scoped_fixture,))
+    @given(data=data())
+    def test_complete_weeks(self, data, rawdb):
+        self._test_complete_weeks(data, rawdb)
 
     def test_week_iter(self, rawdb):
         weeknum = 15
@@ -168,6 +175,11 @@ class TestRawDB:
 class TestRawDBU(TestRawDB):
     cls = totals.RawDBU
     minmax_default_prop = "unique"
+
+    @settings(suppress_health_check=(HealthCheck.function_scoped_fixture,))
+    @given(data=data())
+    def test_complete_weeks(self, data, rawdb):
+        self._test_complete_weeks(data, rawdb)
 
     def test_week_iter(self, rawdb):
         weeknum = 59
