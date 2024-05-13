@@ -23,7 +23,7 @@ packages = [
 ]
 include = [
     { path = "scripts/*.sh", format = "sdist" },
-    { path = "scripts/rezip", format = "sdist" },
+    { path = "scripts/countme-rezip", format = "sdist" },
     { path = "tests", format = "sdist" },
 ]
 
