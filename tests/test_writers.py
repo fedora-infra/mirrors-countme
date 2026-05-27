@@ -152,7 +152,7 @@ class TestSQLiteWriter:
             sqltype.replace(" ", "_"): typehint
             for typehint, sqltype in item_writer.SQL_TYPE.items()
         }
-        AllTypesItemTuple = NamedTuple("AllTypesItemTuple", **fieldname_typehints)
+        AllTypesItemTuple = NamedTuple("AllTypesItemTuple", list(fieldname_typehints.items()))
         with mock.patch.object(item_writer, "_itemtuple", new=AllTypesItemTuple):
             # Can’t use item_writer._fields because it’s initialited with another type.
             for fieldname in AllTypesItemTuple._fields:
