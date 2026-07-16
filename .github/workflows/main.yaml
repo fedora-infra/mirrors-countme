@@ -24,7 +24,7 @@ jobs:
 
       - name: Check Poetry lock file consistency
         run: >
-          poetry lock --check
+          poetry check --lock
 
   backend-ci:
     strategy:
