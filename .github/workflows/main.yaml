@@ -29,6 +29,8 @@ jobs:
   backend-ci:
     strategy:
       fail-fast: false
+      matrix:
+        tox-env: ["py311", "py312", "py313", "py314", "py315"]
     runs-on: ubuntu-latest
     container: fedorapython/fedora-python-tox:latest
     steps:
@@ -50,4 +52,4 @@ jobs:
           dnf install -y glibc-langpack-en
 
       - name: run tests through tox
-        run: tox -e $(tox -l | grep '^py[0-9]' | paste -sd , -)
+        run: tox -e ${{ matrix.tox-env }}
