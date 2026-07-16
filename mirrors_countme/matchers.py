@@ -27,7 +27,7 @@ class LogMatcher:
     """Base class for a LogMatcher, which iterates through a log file"""
 
     regex = NotImplemented
-    itemtuple: Type[MirrorItem] | Type[CountmeItem]
+    itemtuple: Type[MirrorItem] | Type[CountmeItem]  # pragma: no cover
 
     def __init__(self, fileobj):
         self.fileobj = fileobj
