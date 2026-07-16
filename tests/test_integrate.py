@@ -98,9 +98,9 @@ def test_count_totals(tmp_path_cwd, raw_db_tar, totals_db_tar):
         "select * from countme_totals except select * from test_db.countme_totals;"
     )
     extra = rows_extra.fetchone()
-    assert (
-        missing is None and extra is None
-    ), f"When comparing db's\n {missing} was missing and\n {extra} was extra"
+    assert missing is None and extra is None, (
+        f"When comparing db's\n {missing} was missing and\n {extra} was extra"
+    )
 
 
 def test_read_file(tmp_path_cwd, log_tar, db_tar):
@@ -130,9 +130,9 @@ def test_read_file(tmp_path_cwd, log_tar, db_tar):
     missing = rows_missing.fetchone()
     rows_extra = db.execute("select * from countme_raw except select * from test_db.countme_raw;")
     extra = rows_extra.fetchone()
-    assert (
-        missing is None and extra is None
-    ), f"When comparing db's\n {missing} was missing and\n {extra} was extra"
+    assert missing is None and extra is None, (
+        f"When comparing db's\n {missing} was missing and\n {extra} was extra"
+    )
 
 
 def create_logline(ip, date, repo):

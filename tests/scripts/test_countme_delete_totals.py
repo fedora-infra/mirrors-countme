@@ -138,13 +138,14 @@ def test_num2ui(number, expected_number):
 
 
 def test_get_trim_data(capsys):
-    with mock.patch("mirrors_countme.scripts.countme_delete_totals.sqlite3") as sqlite3, mock.patch(
-        "mirrors_countme.scripts.countme_delete_totals.last_week"
-    ) as last_week, mock.patch(
-        "mirrors_countme.scripts.countme_delete_totals._num_entries"
-    ) as _num_entries, mock.patch(
-        "mirrors_countme.scripts.countme_delete_totals._num_entries_for"
-    ) as _num_entries_for:
+    with (
+        mock.patch("mirrors_countme.scripts.countme_delete_totals.sqlite3") as sqlite3,
+        mock.patch("mirrors_countme.scripts.countme_delete_totals.last_week") as last_week,
+        mock.patch("mirrors_countme.scripts.countme_delete_totals._num_entries") as _num_entries,
+        mock.patch(
+            "mirrors_countme.scripts.countme_delete_totals._num_entries_for"
+        ) as _num_entries_for,
+    ):
         sqlite3.connect.return_value = connection_sentinel = object()
         last_week.return_value = 5
         _num_entries.return_value = 1234

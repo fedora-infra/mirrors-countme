@@ -125,8 +125,9 @@ class TestRawDB:
         else:
             maxtime = None
 
-        with mock.patch.object(self.cls, "mintime", new=mintime), mock.patch.object(
-            self.cls, "maxtime", new=maxtime
+        with (
+            mock.patch.object(self.cls, "mintime", new=mintime),
+            mock.patch.object(self.cls, "maxtime", new=maxtime),
         ):
             result = rawdb.complete_weeks()
 
@@ -290,15 +291,14 @@ def test_totals(with_countme_raw, with_csv_dump, with_progress):
     BUCKET_NUM = 5
     ENTRIES_PER_BUCKET = 3
 
-    with mock.patch.object(totals, "SQLiteWriter") as SQLiteWriter, mock.patch.object(
-        totals, "RawDB"
-    ) as RawDB, mock.patch.object(totals, "DIYProgress") as DIYProgress, mock.patch.object(
-        totals, "RawDBU"
-    ) as RawDBU, mock.patch.object(
-        totals, "SQLiteReader"
-    ) as SQLiteReader, mock.patch.object(
-        totals, "CSVWriter"
-    ) as CSVWriter:
+    with (
+        mock.patch.object(totals, "SQLiteWriter") as SQLiteWriter,
+        mock.patch.object(totals, "RawDB") as RawDB,
+        mock.patch.object(totals, "DIYProgress") as DIYProgress,
+        mock.patch.object(totals, "RawDBU") as RawDBU,
+        mock.patch.object(totals, "SQLiteReader") as SQLiteReader,
+        mock.patch.object(totals, "CSVWriter") as CSVWriter,
+    ):
         totals_db = SQLiteWriter.return_value
         progress = DIYProgress.return_value
         rawdb = RawDB.return_value

@@ -173,15 +173,12 @@ def test_trim_data(testcase, capsys):
     expectation = nullcontext()
     connection = mock.Mock()
 
-    with mock.patch(
-        "mirrors_countme.scripts.countme_trim_raw._num_entries"
-    ) as _num_entries, mock.patch(
-        "mirrors_countme.scripts.countme_trim_raw.tm2ui"
-    ) as tm2ui, mock.patch(
-        "mirrors_countme.scripts.countme_trim_raw.time"
-    ) as time, mock.patch(
-        "mirrors_countme.scripts.countme_trim_raw._del_entries"
-    ) as _del_entries:
+    with (
+        mock.patch("mirrors_countme.scripts.countme_trim_raw._num_entries") as _num_entries,
+        mock.patch("mirrors_countme.scripts.countme_trim_raw.tm2ui") as tm2ui,
+        mock.patch("mirrors_countme.scripts.countme_trim_raw.time") as time,
+        mock.patch("mirrors_countme.scripts.countme_trim_raw._del_entries") as _del_entries,
+    ):
         _num_entries.return_value = "<num_affected>"
         tm2ui.side_effect = lambda v: f"<tm2ui({v})>"
         if "interrupt" in testcase:
@@ -230,21 +227,19 @@ def test_main(oldest_week, unique_ip_only, with_entries, capsys):
     else:
         expectation = pytest.raises(SystemExit)
 
-    with mock.patch(
-        "mirrors_countme.scripts.countme_trim_raw.parse_args"
-    ) as parse_args, mock.patch(
-        "mirrors_countme.scripts.countme_trim_raw.sqlite3"
-    ) as sqlite3, mock.patch(
-        "mirrors_countme.scripts.countme_trim_raw.get_mintime"
-    ) as get_mintime, mock.patch(
-        "mirrors_countme.scripts.countme_trim_raw.get_maxtime"
-    ) as get_maxtime, mock.patch(
-        "mirrors_countme.scripts.countme_trim_raw.get_mintime_unique"
-    ) as get_mintime_unique, mock.patch(
-        "mirrors_countme.scripts.countme_trim_raw.get_maxtime_unique"
-    ) as get_maxtime_unique, mock.patch(
-        "mirrors_countme.scripts.countme_trim_raw.trim_data"
-    ) as trim_data:
+    with (
+        mock.patch("mirrors_countme.scripts.countme_trim_raw.parse_args") as parse_args,
+        mock.patch("mirrors_countme.scripts.countme_trim_raw.sqlite3") as sqlite3,
+        mock.patch("mirrors_countme.scripts.countme_trim_raw.get_mintime") as get_mintime,
+        mock.patch("mirrors_countme.scripts.countme_trim_raw.get_maxtime") as get_maxtime,
+        mock.patch(
+            "mirrors_countme.scripts.countme_trim_raw.get_mintime_unique"
+        ) as get_mintime_unique,
+        mock.patch(
+            "mirrors_countme.scripts.countme_trim_raw.get_maxtime_unique"
+        ) as get_maxtime_unique,
+        mock.patch("mirrors_countme.scripts.countme_trim_raw.trim_data") as trim_data,
+    ):
         args = mock.Mock(
             sqlite="test.db",
             keep=1,

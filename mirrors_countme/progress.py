@@ -190,7 +190,7 @@ class ReadProgress:
         for i, line in enumerate(logf):
             if i == 0:
                 # Set log date from first processed line
-                desc = f"log {num+1}/{len(self.logs)}, date={log_date(line)}"
+                desc = f"log {num + 1}/{len(self.logs)}, date={log_date(line)}"
                 prog.set_description(desc)
             prog.update(len(line))
             yield line

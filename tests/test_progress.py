@@ -47,9 +47,11 @@ def test_log_date(date, expected):
 
 @pytest.mark.parametrize("filetype", ("plain", "gzip", "xz"))
 def test_log_reader(filetype):
-    with mock.patch("mirrors_countme.progress.lzma") as lzma, mock.patch(
-        "mirrors_countme.progress.gzip"
-    ) as gzip, mock.patch("mirrors_countme.progress.open") as open:
+    with (
+        mock.patch("mirrors_countme.progress.lzma") as lzma,
+        mock.patch("mirrors_countme.progress.gzip") as gzip,
+        mock.patch("mirrors_countme.progress.open") as open,
+    ):
         match filetype:
             case "plain":
                 fn = open
@@ -106,13 +108,15 @@ def gz_logfile(logfile_content, tmp_path):
 def test_log_total_size(
     filetype, file_exists, logfile_content, plain_logfile, gz_logfile, xz_logfile
 ):
-    with mock.patch(
-        "mirrors_countme.progress.xz_log_size", wraps=progress.xz_log_size
-    ) as xz_log_size, mock.patch(
-        "mirrors_countme.progress.gz_log_size", wraps=progress.gz_log_size
-    ) as gz_log_size, mock.patch.object(
-        progress.os, "stat", wraps=progress.os.stat
-    ) as stat:
+    with (
+        mock.patch(
+            "mirrors_countme.progress.xz_log_size", wraps=progress.xz_log_size
+        ) as xz_log_size,
+        mock.patch(
+            "mirrors_countme.progress.gz_log_size", wraps=progress.gz_log_size
+        ) as gz_log_size,
+        mock.patch.object(progress.os, "stat", wraps=progress.os.stat) as stat,
+    ):
         match filetype:
             case "plain":
                 filepath = plain_logfile
@@ -246,9 +250,12 @@ class TestDIYProgress:
         obj = progress.DIYProgress(desc="Test", total=self.TEST_TOTAL, unit_scale=unit_scale)
         obj.count = count
 
-        with mock.patch("mirrors_countme.progress.print") as print, mock.patch.object(
-            progress.DIYProgress, "hrsize", wraps=progress.DIYProgress.hrsize
-        ) as hrsize:
+        with (
+            mock.patch("mirrors_countme.progress.print") as print,
+            mock.patch.object(
+                progress.DIYProgress, "hrsize", wraps=progress.DIYProgress.hrsize
+            ) as hrsize,
+        ):
             obj.display()
 
         if unit_scale:
@@ -325,11 +332,11 @@ class TestReadProgress:
         logs = [f"log{i}" for i in range(10)]
         obj = progress.ReadProgress(logs)
 
-        with mock.patch("mirrors_countme.progress.log_reader") as log_reader, mock.patch(
-            "mirrors_countme.progress.log_total_size"
-        ) as log_total_size, mock.patch.object(
-            progress.ReadProgress, "_iter_log_lines"
-        ) as _iter_log_lines:
+        with (
+            mock.patch("mirrors_countme.progress.log_reader") as log_reader,
+            mock.patch("mirrors_countme.progress.log_total_size") as log_total_size,
+            mock.patch.object(progress.ReadProgress, "_iter_log_lines") as _iter_log_lines,
+        ):
             log_reader.side_effect = lambda logfn: f"log_reader({logfn})"
             log_total_size.side_effect = lambda logfn: f"log_total_size({logfn})"
             _iter_log_lines.side_effect = lambda logf, num, total: (
@@ -358,9 +365,10 @@ class TestReadProgress:
 
         obj = progress.ReadProgress([object()])
 
-        with mock.patch.object(progress.ReadProgress, "_progress_obj") as _progress_obj, mock.patch(
-            "mirrors_countme.progress.log_date"
-        ) as log_date:
+        with (
+            mock.patch.object(progress.ReadProgress, "_progress_obj") as _progress_obj,
+            mock.patch("mirrors_countme.progress.log_date") as log_date,
+        ):
             _progress_obj.return_value = prog = mock.Mock()
             log_date.side_effect = lambda line: f"log_date({line})"
 
