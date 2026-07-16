@@ -47,6 +47,12 @@ Push the new version and tag upstream:
 git push origin main 0.1.2
 ```
 
+#### Create an Upstream Release on PyPI
+
+```
+poetry publish
+```
+
 #### Create an Upstream Release on GitHub
 
 1. Open the list of tags on GitHub: https://github.com/fedora-infra/mirrors-countme/tags
