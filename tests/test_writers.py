@@ -219,9 +219,10 @@ class TestSQLiteWriter:
         _connection.commit.assert_called_once_with()
 
     def test_write_index(self, item_writer):
-        with mock.patch.object(item_writer, "_cursor") as _cursor, mock.patch.object(
-            item_writer, "commit"
-        ) as commit:
+        with (
+            mock.patch.object(item_writer, "_cursor") as _cursor,
+            mock.patch.object(item_writer, "commit") as commit,
+        ):
             item_writer.write_index()
 
         _cursor.execute.assert_called_once_with(item_writer._create_time_index)
